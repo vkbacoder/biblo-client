@@ -1,0 +1,40 @@
+{
+  "title": "Permisos",
+  "intro": "BiBoTracking utiliza las funciones que se indican a continuación. El estado se actualiza automáticamente.",
+  "granted": "Concedido",
+  "quitReopen": "Salir y volver a abrir",
+  "request": "Solicitar",
+  "openSettings": "Abrir Ajustes del sistema →",
+  "off": "Desactivado",
+  "summary": "{{granted}} de {{total}} activadas · Se revisa automáticamente",
+  "recheck": "Actualizar",
+  "restartNote": "Algunos permisos requieren salir y volver a abrir la aplicación para aplicarse.",
+  "startupNotice": {
+    "title": "Se necesitan permisos",
+    "body": "BiBoTracking se inició sin algunos permisos necesarios; la aplicación nunca los solicita automáticamente. Concédelos abajo para activar el seguimiento completo.",
+    "open": "Abrir Permisos",
+    "dismiss": "Cerrar"
+  },
+  "caps": {
+    "accessibility": {
+      "label": "Accesibilidad",
+      "description": "Permite que la app lea la ventana/app activa para el seguimiento de actividad."
+    },
+    "input_monitoring": {
+      "label": "Monitorización de entrada",
+      "description": "Necesario para contar las pulsaciones de teclas."
+    },
+    "screen_recording": {
+      "label": "Grabación de pantalla",
+      "description": "Permite que la app realice capturas de pantalla periódicas."
+    },
+    "keystrokes": {
+      "label": "Actividad y pulsaciones",
+      "description": "Rastrea la app/ventana activa y cuenta las pulsaciones (solo el número — nunca qué teclas se pulsan)."
+    },
+    "screenshots": {
+      "label": "Capturas de pantalla",
+      "description": "Realiza capturas periódicas de tu(s) pantalla(s)."
+    }
+  }
+}

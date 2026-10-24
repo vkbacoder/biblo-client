@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "Ngôn ngữ",
+  "loading": "Đang tải…",
+  "nav": {
+    "Dashboard": "Bảng điều khiển",
+    "Activity": "Hoạt động",
+    "Screenshots": "Ảnh chụp màn hình",
+    "Browser": "Trình duyệt",
+    "Permissions": "Quyền",
+    "Settings": "Cài đặt",
+    "Admin": "Quản trị",
+    "TeamOverview": "Tổng quan nhóm",
+    "Members": "Nhân viên",
+    "group": {
+      "me": "Của tôi",
+      "admin": "Quản trị"
+    }
+  },
+  "status": {
+    "tracking": "Đang theo dõi",
+    "paused": "Đã tạm dừng",
+    "idle": "Không hoạt động"
+  },
+  "statusTooltip": {
+    "tracking": "Đang theo dõi — nhấp để tạm dừng",
+    "paused": "Đã tạm dừng theo dõi — nhấp để tiếp tục",
+    "idle": "Không hoạt động — không có nhập liệu gần đây, không tính. Nhấp để tạm dừng."
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "account": {
+    "local": "Chế độ cục bộ",
+    "setupAgain": "Thiết lập tài khoản",
+    "signOut": "Đăng xuất",
+    "localTooltip": "Cá nhân, chỉ cục bộ — không tài khoản",
+    "setupAgainTooltip": "Đăng nhập bằng tài khoản nhóm hoặc gia đình"
+  },
+  "messages": {
+    "whatsNewTitle": "Có gì mới trong phiên bản {{version}}",
+    "gotIt": "Đã hiểu",
+    "later": "Nhắc tôi sau",
+    "close": "Đóng",
+    "submit": "Gửi",
+    "sending": "Đang gửi…",
+    "thanks": "Cảm ơn bạn đã góp ý!",
+    "required": "Vui lòng trả lời các câu hỏi bắt buộc.",
+    "error": "Không gửi được. Vui lòng thử lại.",
+    "npsLow": "Không có khả năng",
+    "npsHigh": "Rất có khả năng",
+    "choose": "Chọn…"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "言語",
+  "loading": "読み込み中…",
+  "nav": {
+    "Dashboard": "ダッシュボード",
+    "Activity": "アクティビティ",
+    "Screenshots": "スクリーンショット",
+    "Browser": "ブラウザ",
+    "Permissions": "アクセス許可",
+    "Settings": "設定",
+    "Admin": "管理",
+    "TeamOverview": "チーム概要",
+    "Members": "メンバー",
+    "group": {
+      "me": "自分",
+      "admin": "管理"
+    }
+  },
+  "status": {
+    "tracking": "トラッキング中",
+    "paused": "一時停止中",
+    "idle": "アイドル"
+  },
+  "statusTooltip": {
+    "tracking": "トラッキング中 — クリックで一時停止",
+    "paused": "トラッキングを一時停止中 — クリックで再開",
+    "idle": "アイドル — 最近の入力がなく、カウントしていません。クリックで一時停止。"
+  },
+  "theme": {
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム"
+  },
+  "account": {
+    "local": "ローカルモード",
+    "setupAgain": "アカウントを設定",
+    "signOut": "ログアウト",
+    "localTooltip": "個人用・ローカルのみ — アカウントなし",
+    "setupAgainTooltip": "チームまたは家族のアカウントでログイン"
+  },
+  "messages": {
+    "whatsNewTitle": "バージョン {{version}} の新機能",
+    "gotIt": "OK",
+    "later": "後で通知",
+    "close": "閉じる",
+    "submit": "送信",
+    "sending": "送信中…",
+    "thanks": "ご意見ありがとうございます！",
+    "required": "必須の質問に回答してください。",
+    "error": "送信できませんでした。もう一度お試しください。",
+    "npsLow": "可能性は低い",
+    "npsHigh": "可能性は高い",
+    "choose": "選択してください…"
+  }
+}

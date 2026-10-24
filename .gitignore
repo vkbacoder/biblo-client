@@ -1,0 +1,48 @@
+node_modules/
+dist
+.DS_Store
+*.log
+
+# Tauri / Rust (future)
+target/
+
+# pnpm
+.pnpm-store/
+
+# deploy artifacts + secrets
+deploy/dist/
+deploy/.env.deploy
+
+# local runtime secrets (per-env real files; the *.example templates stay tracked)
+.env
+.env.staging
+.env.prod
+
+# per-env screenshot blob dirs (created at runtime by start-env.sh)
+apps/backend/storage-staging/
+apps/backend/storage-prod/
+
+# on-disk backend log files (LOG_DIR, default ./logs)
+apps/backend/logs/
+logs/
+
+# Local Claude Code config/skills — keep local, do not track
+.claude/
+
+# Deployment scripts/config — keep local, do not track
+deploy/
+
+# Marketing: production-rendered output (generated at deploy time by marketing/build.mjs production)
+marketing/site-prod/
+marketing/site-staging/
+
+# Marketing: local offline-design reference dumps (never committed)
+marketing/site/_*.html
+.playwright-mcp/*
+app.crediential.txt
+brian.nguyen.work@gmail.com-2026-06-20T08_55_14.616Z_public.pem
+certificate/mac_app_distribution.cer
+scripts/vps-monitor.sh
+
+# Local-only agent notes (contain infra details — never publish)
+CLAUDE.md

@@ -1,0 +1,45 @@
+{
+  "screenshots": {
+    "title": "Captures d'écran d'aujourd'hui",
+    "intro": "Capturées automatiquement toutes les 5 minutes.",
+    "captureNow": "Capturer maintenant",
+    "capturing": "Capture en cours…",
+    "captured": "{{count}} écran capturé.",
+    "captured_other": "{{count}} écrans capturés.",
+    "capturedZero": "0 capturé — l'enregistrement de l'écran est-il autorisé ? (onglet Autorisations)",
+    "captureFailed": "Échec de la capture : {{error}}",
+    "empty": "Aucune capture d'écran aujourd'hui. Autorisez l'enregistrement de l'écran dans l'onglet Autorisations, puis cliquez sur « Capturer maintenant ».",
+    "shotTitle": "{{time}} · écran {{display}}",
+    "shotAlt": "capture d'écran {{time}}"
+  },
+  "browser": {
+    "visitedTitle": "Sites visités aujourd'hui",
+    "visitedSub": "Regroupés par domaine, les plus visités en premier.",
+    "live": "En direct · actualisé toutes les 3 s",
+    "colDomain": "Domaine",
+    "colStart": "Heure",
+    "colDuration": "Durée",
+    "colBrowser": "Navigateur",
+    "title": "Suivre les pages web",
+    "subtitle": "Installez l'extension BiBoTracking pour voir ici les pages que vous consultez.",
+    "gifPlaceholder": "[ GIF : installation de l'extension Chrome ]",
+    "step1": "Ouvrez Google Chrome",
+    "step2Prefix": "Accédez au Chrome Web Store — ",
+    "getExtension": "Obtenir l'extension →",
+    "step3": "Cliquez sur « Ajouter à Chrome »",
+    "step4": "Revenez ici — la connexion se fera automatiquement",
+    "waiting": "▲ En attente de l'extension…",
+    "waitingPort": " (à l'écoute sur le port {{port}})",
+    "support": "Pris en charge actuellement : ✓ Chrome  ·  Bientôt disponible : Edge · Firefox · Safari",
+    "topSites": "Sites principaux par durée",
+    "pageVisits": "Pages consultées",
+    "colPage": "Page",
+    "colSite": "Site",
+    "colTime": "Durée",
+    "colWhen": "Quand"
+  },
+  "ui": {
+    "brandAlt": "BiBoTracking",
+    "stepOf": "Étape {{current}} sur {{total}}"
+  }
+}

@@ -1,0 +1,69 @@
+[package]
+name = "ctracking"
+version = "1.6.0"
+description = "BiBoTracking employee activity tracker for Linux"
+authors = ["Brian Nguyen"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "ctracking_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+active-win-pos-rs = "0.8"
+tauri-plugin-dialog = "2"
+csv = "1"
+xcap = "0.9"
+webp = "0.3"
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
+# Encode admin screenshot bytes into a data: URL for the native EmployeeDetail gallery.
+base64 = "0.22"
+# Cross-platform OS CSPRNG for the browser-ingest token (replaces /dev/urandom).
+getrandom = "0.2"
+# Error reporting (Rust core). rustls to match reqwest; no native-tls/openssl.
+sentry = { version = "0.34", default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "rustls"] }
+tauri-plugin-process = "2.3.1"
+os_info = "3.15.0"
+time = { version = "0.3", features = ["formatting"] }
+
+# macOS-only: CoreFoundation bindings used by the permission/event-tap backend.
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+
+# Windows-only: Win32 bindings for idle detection (M1) and the keyboard hook (M2).
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_SystemInformation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+
+# Backend environment selected at compile time. Resolution order in code is
+# local > staging > production (see settings::DEFAULT_BACKEND_URL). The runtime
+# CTRACKING_BACKEND_URL env var still overrides everything (used in dev).
+#   local:      cargo ... --no-default-features --features local
+#   staging:    cargo ... --no-default-features --features staging
+#   production: default
+[features]
+default = ["production"]
+local = []
+staging = []
+production = []

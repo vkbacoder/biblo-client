@@ -1,0 +1,55 @@
+{
+  "welcome": {
+    "title": "Welcome to BiBoTracking",
+    "sub": "Choose how you want to use the app.",
+    "local": {
+      "title": "Just me",
+      "desc": "Track locally on this device. No account — nothing leaves your machine.",
+      "next": "Next"
+    },
+    "account": {
+      "title": "I have an account",
+      "desc": "Sign in to sync with your team or family workspace.",
+      "signIn": "Sign in"
+    },
+    "needAccount": "Need an account?",
+    "signupLink": "Sign up",
+    "adminLink": "Open the admin dashboard"
+  },
+  "tray": {
+    "status": "Status",
+    "paused": "Paused",
+    "tracking": "Tracking",
+    "open": "Open BiBoTracking",
+    "start": "Start tracking",
+    "stop": "Stop tracking",
+    "quit": "Quit BiBoTracking"
+  },
+  "consent": {
+    "title": "What BiBoTracking captures",
+    "subtitle": "Four kinds of activity. You are always in control.",
+    "shots": {
+      "t": "Screenshots",
+      "d": "Blurred thumbnails on an interval you set."
+    },
+    "keys": {
+      "t": "Keystrokes",
+      "d": "Counts only — never the actual keys."
+    },
+    "activity": {
+      "t": "Activity time",
+      "d": "Active app and how long you use it."
+    },
+    "web": {
+      "t": "Web pages",
+      "d": "Domains visited — page contents stay private."
+    },
+    "whoLabel": "WHO SEES THIS?",
+    "whoLocal": "Only you, on this device. Nothing is uploaded.",
+    "whoTeam": "Shared with your team or family workspace.",
+    "starting": "Starting…",
+    "accept": "I understand and consent",
+    "skip": "Skip",
+    "next": "Next"
+  }
+}

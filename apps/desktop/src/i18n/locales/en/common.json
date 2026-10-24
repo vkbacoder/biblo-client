@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "Language",
+  "loading": "Loading…",
+  "nav": {
+    "Dashboard": "Dashboard",
+    "Activity": "Activity",
+    "Screenshots": "Screenshots",
+    "Browser": "Browser",
+    "Permissions": "Permissions",
+    "Settings": "Settings",
+    "Admin": "Admin",
+    "TeamOverview": "Team overview",
+    "Members": "Members",
+    "group": {
+      "me": "Personal",
+      "admin": "Admin"
+    }
+  },
+  "status": {
+    "tracking": "Tracking",
+    "paused": "Paused",
+    "idle": "Idle"
+  },
+  "statusTooltip": {
+    "tracking": "Tracking — click to pause",
+    "paused": "Tracking paused — click to resume",
+    "idle": "Idle — no recent input, not counting. Click to pause."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "account": {
+    "local": "Local mode",
+    "setupAgain": "Set up account",
+    "signOut": "Sign out",
+    "localTooltip": "Personal, local-only — no account",
+    "setupAgainTooltip": "Sign in with a team or family account"
+  },
+  "messages": {
+    "whatsNewTitle": "What's new in version {{version}}",
+    "gotIt": "Got it",
+    "later": "Remind me later",
+    "close": "Close",
+    "submit": "Submit",
+    "sending": "Sending…",
+    "thanks": "Thanks for your feedback!",
+    "required": "Please answer the required questions.",
+    "error": "Couldn't send. Please try again.",
+    "npsLow": "Not likely",
+    "npsHigh": "Very likely",
+    "choose": "Choose…"
+  }
+}

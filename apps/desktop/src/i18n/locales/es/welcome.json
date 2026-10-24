@@ -1,0 +1,55 @@
+{
+  "welcome": {
+    "title": "Te damos la bienvenida a BiBoTracking",
+    "sub": "Elige cómo quieres usar la aplicación.",
+    "local": {
+      "title": "Solo yo",
+      "desc": "Seguimiento local en este dispositivo. Sin cuenta — nada sale de tu equipo.",
+      "next": "Siguiente"
+    },
+    "account": {
+      "title": "Tengo una cuenta",
+      "desc": "Inicia sesión para sincronizar con el espacio de tu equipo o familia.",
+      "signIn": "Iniciar sesión"
+    },
+    "needAccount": "¿Necesitas una cuenta?",
+    "signupLink": "Regístrate",
+    "adminLink": "Abrir el panel de administración"
+  },
+  "tray": {
+    "status": "Estado",
+    "paused": "En pausa",
+    "tracking": "Registrando",
+    "open": "Abrir BiBoTracking",
+    "start": "Iniciar registro",
+    "stop": "Detener registro",
+    "quit": "Salir de BiBoTracking"
+  },
+  "consent": {
+    "title": "Qué captura BiBoTracking",
+    "subtitle": "Cuatro tipos de actividad. Siempre tienes el control.",
+    "shots": {
+      "t": "Capturas de pantalla",
+      "d": "Miniaturas difuminadas en el intervalo que elijas."
+    },
+    "keys": {
+      "t": "Pulsaciones",
+      "d": "Solo el número — nunca las teclas reales."
+    },
+    "activity": {
+      "t": "Tiempo de actividad",
+      "d": "La app activa y cuánto tiempo la usas."
+    },
+    "web": {
+      "t": "Páginas web",
+      "d": "Dominios visitados — el contenido sigue siendo privado."
+    },
+    "whoLabel": "¿QUIÉN LO VE?",
+    "whoLocal": "Solo tú, en este dispositivo. No se sube nada.",
+    "whoTeam": "Se comparte con el espacio de tu equipo o familia.",
+    "starting": "Iniciando…",
+    "accept": "Entiendo y doy mi consentimiento",
+    "skip": "Omitir",
+    "next": "Siguiente"
+  }
+}

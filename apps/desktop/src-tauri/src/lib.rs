@@ -1,0 +1,231 @@
+//! ctracking — local-only macOS activity tracker.
+//! Module layout per docs/01-architecture.md.
+
+mod analytics;
+mod commands;
+mod obs;
+mod platform;
+mod server;
+mod settings;
+mod storage;
+mod sync;
+mod tray;
+mod trackers;
+
+use std::sync::Arc;
+use tauri::{Emitter, Manager};
+
+/// Current unix time in seconds. Shared helper for sync bookkeeping.
+pub fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Apply the "run without an app-launcher presence" setting. macOS toggles the
+/// Dock icon via the activation policy; Windows hides the taskbar button (the app
+/// stays reachable from the tray). No-op elsewhere.
+#[cfg(target_os = "macos")]
+fn apply_dock_policy(app: &tauri::AppHandle, hide: bool) {
+    let _ = app.set_activation_policy(if hide {
+        tauri::ActivationPolicy::Accessory
+    } else {
+        tauri::ActivationPolicy::Regular
+    });
+}
+#[cfg(target_os = "windows")]
+fn apply_dock_policy(app: &tauri::AppHandle, hide: bool) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_skip_taskbar(hide);
+    }
+}
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn apply_dock_policy(_app: &tauri::AppHandle, _hide: bool) {}
+
+/// Fetch the curated sensitive-app list from the backend (skip-list suggestions
+/// + prefill), falling back to the baked-in copy when the backend is
+/// unreachable (offline / personal use).
+pub async fn fetch_privacy_apps_or_baked() -> Vec<sync::client::PrivacyAppCategory> {
+    match sync::client::fetch_privacy_apps(&settings::backend_base_url()).await {
+        Ok(categories) if !categories.is_empty() => categories,
+        Ok(_) | Err(_) => trackers::DEFAULT_PRIVACY_APPS
+            .iter()
+            .map(|(key, apps)| sync::client::PrivacyAppCategory {
+                key: key.to_string(),
+                apps: apps.iter().map(|a| a.to_string()).collect(),
+            })
+            .collect(),
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    // Sentry error reporting for the Rust core. Held for the whole process (drop =
+    // flush); no-op when CTRACKING_SENTRY_DSN is unset. Installs the panic hook too.
+    let _sentry = obs::init();
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::ping,
+            commands::track_event,
+
+            commands::set_paused,
+            commands::set_in_setup,
+            commands::is_paused,
+            commands::tracking_state,
+            commands::dashboard_data,
+            commands::keystroke_buckets,
+            commands::screenshot_list,
+            commands::browser_visits,
+            commands::get_settings,
+            commands::set_settings,
+            commands::set_locale,
+            commands::export_csv,
+            commands::export_json,
+            commands::permissions_status,
+            commands::open_permission_settings,
+            commands::request_screen_recording,
+            commands::request_input_monitoring,
+            commands::request_accessibility,
+            commands::capture_now,
+            commands::browser_link,
+            commands::signup_url,
+            commands::admin_url,
+            commands::admin_businesses,
+            commands::admin_roster,
+            commands::admin_employee_activity,
+            commands::admin_employee_keystrokes,
+            commands::admin_employee_browser,
+            commands::admin_employee_screenshots,
+            commands::admin_screenshot_data,
+            commands::admin_create_business,
+            commands::admin_create_employee,
+            commands::login,
+            commands::logout,
+            commands::current_session,
+            commands::sync_status,
+            commands::apply_org_policy,
+            commands::capture_policy,
+            commands::privacy_apps,
+            commands::messages_fetch,
+            commands::message_respond,
+            commands::message_event,
+        ])
+        .setup(|app| {
+            // Open the local SQLite DB under the app data dir.
+            let data_dir = app.path().app_data_dir().expect("resolve app data dir");
+            std::fs::create_dir_all(&data_dir).expect("create app data dir");
+            let db_path = data_dir.join("data.db");
+            let db = Arc::new(storage::Db::open(&db_path).expect("open database"));
+
+            // Shared control surface for the trackers (pause, intervals, privacy).
+            let control = Arc::new(trackers::TrackerControl::new());
+
+            // Load persisted settings and apply them to the live control.
+            let settings_path = data_dir.join("settings.json");
+            let loaded = settings::load_with_device_id(&settings_path);
+            settings::apply(&loaded, &control);
+            let hide_dock = loaded.hide_dock;
+            let loaded_locale = loaded.locale.clone();
+            // One fresh Aptabase session id per launch, shared by the native launch/focus
+            // events and the web-UI `track_event` command. A stable per-day key made
+            // Aptabase drop repeat posts so events never landed (ticket 135).
+            let analytics_session = analytics::AnalyticsSession(uuid::Uuid::new_v4().to_string());
+            app.manage(analytics_session.clone());
+            let settings_state = Arc::new(settings::SettingsState {
+                path: settings_path,
+                current: std::sync::Mutex::new(loaded),
+                managed: std::sync::Mutex::new(settings::CaptureManaged::default()),
+            });
+            app.manage(settings_state.clone());
+            // Manage control early so the tray can read pause state.
+            app.manage(control.clone());
+
+            // Menu bar item (Start/Stop/Open) + Dock visibility per settings.
+            tray::build(&app.handle(), control.clone())?;
+            apply_dock_policy(&app.handle(), hide_dock);
+
+            // Keep running when the window is closed — hide to the menu bar instead.
+            // Also emit an `app_active` analytics event when the window regains focus. We do
+            // this natively (WindowEvent::Focused): the JS DOM `focus`/`onFocusChanged`
+            // listener does NOT fire on native window activation in the webview. Throttled
+            // to ≥30 s so rapid switching doesn't spam.
+            if let Some(win) = app.get_webview_window("main") {
+                let w = win.clone();
+                let analytics_queue = data_dir.join("analytics-queue");
+                let analytics_session_id = analytics_session.0.clone();
+                let analytics_locale = loaded_locale.clone();
+                let last_active = std::sync::atomic::AtomicI64::new(0);
+                win.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                    tauri::WindowEvent::Focused(true) => {
+                        // Tell the UI the window came to the front (launch, Dock/tray
+                        // "Open", app switch) — the DOM focus event doesn't fire here.
+                        // Used by the in-app message popup (ticket 145).
+                        let _ = w.emit("app-focused", ());
+                        use std::sync::atomic::Ordering;
+                        let now = now_unix();
+                        if now - last_active.load(Ordering::Relaxed) >= 30 {
+                            last_active.store(now, Ordering::Relaxed);
+                            analytics::track_event(
+                                "app_active".into(),
+                                analytics_locale.clone(),
+                                analytics_session_id.clone(),
+                                analytics_queue.clone(),
+                                None,
+                            );
+                        }
+                    }
+                    _ => {}
+                });
+            }
+
+            // Permissions are NOT requested at startup — the UI detects missing ones
+            // and routes the user to the Permissions screen, where every request is
+            // user-initiated (see App.tsx startup check).
+
+            // Start the trackers, keyboard counter, screenshots, retention cleanup.
+            let shots_dir = data_dir.join("screenshots");
+            trackers::start(db.clone(), control.clone());
+            trackers::start_keyboard(db.clone(), control.clone());
+            trackers::start_screenshots(db.clone(), control.clone(), shots_dir);
+            trackers::start_cleanup(db.clone(), control.clone());
+
+            // Start the local ingest server for the browser extension.
+            let link = server::start(db.clone(), control.clone());
+            app.manage(link);
+
+            // Auth/session (task 51): load any persisted session from disk.
+            let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
+            app.manage(auth.clone());
+
+            // Sync worker (task 53): pushes pending rows to the backend in the
+            // background. No-op while logged out / offline.
+            let status = Arc::new(sync::worker::SyncStatus::default());
+            app.manage(status.clone());
+            sync::worker::start(sync::worker::SyncContext {
+                db: db.clone(),
+                auth,
+                status,
+                settings: settings_state,
+            });
+
+            // Manage remaining state so commands can reach the DB.
+            app.manage(db);
+
+            // Product analytics: one fire-and-forget event per launch (crash-free,
+            // direct Aptabase API — see analytics.rs). Tagged with the per-launch
+            // analytics_session; offline launches queue under data_dir for later flush.
+            analytics::track_app_started(loaded_locale, analytics_session.0.clone(), data_dir.join("analytics-queue"));
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

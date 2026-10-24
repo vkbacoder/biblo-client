@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "语言",
+  "loading": "加载中…",
+  "nav": {
+    "Dashboard": "仪表板",
+    "Activity": "活动",
+    "Screenshots": "截图",
+    "Browser": "浏览器",
+    "Permissions": "权限",
+    "Settings": "设置",
+    "Admin": "管理后台",
+    "TeamOverview": "团队概览",
+    "Members": "成员",
+    "group": {
+      "me": "个人",
+      "admin": "管理"
+    }
+  },
+  "status": {
+    "tracking": "正在跟踪",
+    "paused": "已暂停",
+    "idle": "空闲"
+  },
+  "statusTooltip": {
+    "tracking": "正在跟踪 — 点击以暂停",
+    "paused": "跟踪已暂停 — 点击以恢复",
+    "idle": "空闲 — 最近无输入，未计数。点击以暂停。"
+  },
+  "theme": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
+  },
+  "account": {
+    "local": "本地模式",
+    "setupAgain": "设置账户",
+    "signOut": "退出登录",
+    "localTooltip": "个人本地模式 — 无账户",
+    "setupAgainTooltip": "使用团队或家庭账户登录"
+  },
+  "messages": {
+    "whatsNewTitle": "{{version}} 版本新功能",
+    "gotIt": "知道了",
+    "later": "稍后提醒我",
+    "close": "关闭",
+    "submit": "提交",
+    "sending": "正在发送…",
+    "thanks": "感谢您的反馈！",
+    "required": "请回答必填问题。",
+    "error": "发送失败，请重试。",
+    "npsLow": "不太可能",
+    "npsHigh": "非常可能",
+    "choose": "请选择…"
+  }
+}

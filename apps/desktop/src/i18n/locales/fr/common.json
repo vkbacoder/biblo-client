@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "Langue",
+  "loading": "Chargement…",
+  "nav": {
+    "Dashboard": "Tableau de bord",
+    "Activity": "Activité",
+    "Screenshots": "Captures d'écran",
+    "Browser": "Navigateur",
+    "Permissions": "Autorisations",
+    "Settings": "Paramètres",
+    "Admin": "Administration",
+    "TeamOverview": "Vue d'équipe",
+    "Members": "Membres",
+    "group": {
+      "me": "Personnel",
+      "admin": "Administration"
+    }
+  },
+  "status": {
+    "tracking": "Suivi",
+    "paused": "En pause",
+    "idle": "Inactif"
+  },
+  "statusTooltip": {
+    "tracking": "Suivi en cours — cliquez pour mettre en pause",
+    "paused": "Suivi en pause — cliquez pour reprendre",
+    "idle": "Inactif — aucune activité récente, pas de comptage. Cliquez pour mettre en pause."
+  },
+  "theme": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "account": {
+    "local": "Mode local",
+    "setupAgain": "Configurer un compte",
+    "signOut": "Se déconnecter",
+    "localTooltip": "Personnel, local uniquement — sans compte",
+    "setupAgainTooltip": "Connectez-vous avec un compte d'équipe ou de famille"
+  },
+  "messages": {
+    "whatsNewTitle": "Nouveautés de la version {{version}}",
+    "gotIt": "Compris",
+    "later": "Me le rappeler plus tard",
+    "close": "Fermer",
+    "submit": "Envoyer",
+    "sending": "Envoi…",
+    "thanks": "Merci pour votre avis !",
+    "required": "Veuillez répondre aux questions obligatoires.",
+    "error": "Échec de l'envoi. Veuillez réessayer.",
+    "npsLow": "Peu probable",
+    "npsHigh": "Très probable",
+    "choose": "Choisir…"
+  }
+}

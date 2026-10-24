@@ -1,0 +1,40 @@
+{
+  "title": "Autorisations",
+  "intro": "BiBoTracking utilise les fonctionnalités ci-dessous. Le statut se met à jour automatiquement.",
+  "granted": "Accordé",
+  "quitReopen": "Quitter et rouvrir",
+  "request": "Demander",
+  "openSettings": "Ouvrir les Réglages système →",
+  "off": "Désactivé",
+  "summary": "{{granted}} sur {{total}} activées · Revérification automatique",
+  "recheck": "Actualiser",
+  "restartNote": "Certaines autorisations nécessitent de quitter et de rouvrir l’application pour prendre effet.",
+  "startupNotice": {
+    "title": "Autorisations requises",
+    "body": "BiBoTracking a démarré sans certaines autorisations requises — l’application ne les demande jamais automatiquement. Accordez-les ci-dessous pour activer le suivi complet.",
+    "open": "Ouvrir les autorisations",
+    "dismiss": "Fermer"
+  },
+  "caps": {
+    "accessibility": {
+      "label": "Accessibilité",
+      "description": "Permet à l'application de lire la fenêtre/l'application active pour le suivi d'activité."
+    },
+    "input_monitoring": {
+      "label": "Surveillance des saisies",
+      "description": "Requis pour compter les frappes."
+    },
+    "screen_recording": {
+      "label": "Enregistrement de l'écran",
+      "description": "Permet à l'application de réaliser des captures d'écran périodiques."
+    },
+    "keystrokes": {
+      "label": "Activité et frappes",
+      "description": "Suit l'application/fenêtre active et compte les frappes (comptage uniquement — jamais quelles touches sont pressées)."
+    },
+    "screenshots": {
+      "label": "Captures d'écran",
+      "description": "Réalise des captures d'écran périodiques de votre/vos écran(s)."
+    }
+  }
+}

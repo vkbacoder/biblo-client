@@ -1,0 +1,56 @@
+{
+  "appName": "BiBoTracking",
+  "language": "Bahasa",
+  "loading": "Memuat…",
+  "nav": {
+    "Dashboard": "Dasbor",
+    "Activity": "Aktivitas",
+    "Screenshots": "Tangkapan layar",
+    "Browser": "Peramban",
+    "Permissions": "Izin",
+    "Settings": "Pengaturan",
+    "Admin": "Admin",
+    "TeamOverview": "Ikhtisar tim",
+    "Members": "Anggota",
+    "group": {
+      "me": "Pribadi",
+      "admin": "Admin"
+    }
+  },
+  "status": {
+    "tracking": "Melacak",
+    "paused": "Dijeda",
+    "idle": "Diam"
+  },
+  "statusTooltip": {
+    "tracking": "Melacak — klik untuk menjeda",
+    "paused": "Pelacakan dijeda — klik untuk melanjutkan",
+    "idle": "Diam — tidak ada input baru-baru ini, tidak menghitung. Klik untuk menjeda."
+  },
+  "theme": {
+    "light": "Terang",
+    "dark": "Gelap",
+    "system": "Sistem"
+  },
+  "account": {
+    "local": "Mode lokal",
+    "setupAgain": "Siapkan akun",
+    "signOut": "Keluar",
+    "localTooltip": "Pribadi, hanya lokal — tanpa akun",
+    "setupAgainTooltip": "Masuk dengan akun tim atau keluarga"
+  },
+  "messages": {
+    "whatsNewTitle": "Yang baru di versi {{version}}",
+    "gotIt": "Mengerti",
+    "later": "Ingatkan nanti",
+    "close": "Tutup",
+    "submit": "Kirim",
+    "sending": "Mengirim…",
+    "thanks": "Terima kasih atas masukan Anda!",
+    "required": "Mohon jawab pertanyaan yang wajib.",
+    "error": "Gagal mengirim. Silakan coba lagi.",
+    "npsLow": "Tidak mungkin",
+    "npsHigh": "Sangat mungkin",
+    "choose": "Pilih…"
+  }
+}
