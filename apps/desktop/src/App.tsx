@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { call as invoke } from "./api";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
@@ -13,6 +13,9 @@ import { Settings, type AppSettings, type CaptureManaged } from "./screens/Setti
 import { Login, type Session } from "./screens/Login";
 import { TeamOverview } from "./screens/admin/TeamOverview";
 import { Members } from "./screens/admin/Members";
+import { Teams } from "./screens/admin/Teams";
+import { ScreenshotManagement } from "./screens/admin/ScreenshotManagement";
+import { AuditLogs } from "./screens/admin/AuditLogs";
 import { WorkspacePicker } from "./screens/admin/WorkspacePicker";
 import { type OwnerBusiness, type RosterEntry } from "./screens/admin/AdminDashboard";
 import { Welcome } from "./screens/Welcome";
@@ -20,6 +23,7 @@ import { Onboarding } from "./screens/Onboarding";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { MessageCenter } from "./messages/MessageCenter";
 import { AppTrayMenu } from "./components/AppTrayMenu";
+import { useRoleAccess } from "./hooks/useRoleAccess";
 
 type Screen =
   | "Dashboard"
@@ -28,16 +32,18 @@ type Screen =
   | "Permissions"
   | "TeamOverview"
   | "Members"
+  | "Teams"
+  | "ScreenshotManagement"
+  | "AuditLogs"
   | "Settings";
 
-// Sidebar is grouped: "me" = this machine's own tracking (every user), "admin" =
-// owner-only team management (hidden unless isOwner), "app" = app-wide settings.
-type NavGroup = { key: "me" | "admin" | "app"; items: Screen[] };
-const NAV_GROUPS: NavGroup[] = [
-  { key: "me", items: ["Dashboard", "Activity", "Browser", "Permissions"] },
-  { key: "admin", items: ["TeamOverview", "Members"] },
-  { key: "app", items: ["Settings"] },
-];
+// Sidebar is grouped dynamically per role:
+// - "me" = Personal tracking (all users)
+// - "team" = Team Lead monitoring (assigned teams)
+// - "hr" = Organization HR management (all employees)
+// - "admin" = Full Organization Administration
+// - "app" = Application settings
+type NavGroup = { key: "me" | "admin" | "team" | "hr" | "app"; items: Screen[] };
 
 /* ---- sidebar icons (stroke = currentColor, so they follow the nav item color) ---- */
 const svgProps = {
@@ -94,6 +100,23 @@ const TeamOverviewIcon = () => (
     <rect x="12" y="6" width="3" height="11" rx="1" /><rect x="17" y="13" width="3" height="4" rx="1" />
   </svg>
 );
+const TeamsNavIcon = () => (
+  <svg {...svgProps} aria-hidden>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+);
+const CameraNavIcon = () => (
+  <svg {...svgProps} aria-hidden>
+    <path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4z" />
+    <circle cx="12" cy="13" r="3.2" />
+  </svg>
+);
+const AuditNavIcon = () => (
+  <svg {...svgProps} aria-hidden>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
 const NAV_ICON: Record<Screen, () => ReactElement> = {
   Dashboard: GridIcon,
   Activity: ActivityIcon,
@@ -101,6 +124,9 @@ const NAV_ICON: Record<Screen, () => ReactElement> = {
   Permissions: ShieldNavIcon,
   TeamOverview: TeamOverviewIcon,
   Members: MembersIcon,
+  Teams: TeamsNavIcon,
+  ScreenshotManagement: CameraNavIcon,
+  AuditLogs: AuditNavIcon,
   Settings: GearIcon,
 };
 
@@ -158,7 +184,9 @@ function App() {
   // shows. `bizId` is the workspace the admin screens act on (shared picker).
   const [businesses, setBusinesses] = useState<OwnerBusiness[]>([]);
   const [bizId, setBizId] = useState<string | null>(null);
-  const isOwner = businesses.length > 0;
+  // Authoritative server-side role and permission access
+  const roleAccess = useRoleAccess(bizId, session);
+
   // The member being viewed under the Members tab. Set from "View" in either the
   // team overview or the members list; navigating via the sidebar (or switching
   // workspace) clears it back to the roster. Its name replaces the header title.
@@ -166,11 +194,9 @@ function App() {
   // Installed app version (from tauri.conf.json), shown under the sidebar brand.
   const [version, setVersion] = useState<string>("");
 
-
   useEffect(() => {
     getVersion().then(setVersion).catch(() => {});
   }, []);
-
 
   useEffect(() => {
     invoke<Session | null>("current_session")
@@ -183,8 +209,9 @@ function App() {
     invoke("set_locale", { locale: i18n.resolvedLanguage ?? "en" }).catch(() => {});
   }, [i18n.resolvedLanguage]);
 
-  // Resolve owned workspaces whenever the session changes, so the admin nav group
-  // only shows for owners. Logged out / local-only (no session) ⇒ none.
+  // Resolve workspaces whenever session changes:
+  // - Owners fetch owned businesses via `admin_businesses`
+  // - Team leads, HR, and employees resolve their assigned workspace via `session.business_id`
   useEffect(() => {
     if (!session) {
       setBusinesses([]);
@@ -196,11 +223,49 @@ function App() {
       .then((bs) => {
         if (!alive) return;
         const list = Array.isArray(bs) ? bs : [];
-        setBusinesses(list);
-        setBizId((cur) => cur ?? list[0]?.id ?? null);
+        if (list.length > 0) {
+          setBusinesses(list);
+          setBizId((cur) => cur ?? list[0]?.id ?? null);
+        } else if (session.business_id) {
+          invoke<{ id: string; name: string }>("admin_business_detail", {
+            businessId: session.business_id,
+          })
+            .then((b) => {
+              if (!alive) return;
+              const autoBiz: OwnerBusiness = {
+                id: session.business_id!,
+                name: b?.name || "Organization",
+                kind: "team",
+              };
+              setBusinesses([autoBiz]);
+              setBizId(session.business_id!);
+            })
+            .catch(() => {
+              if (!alive) return;
+              const autoBiz: OwnerBusiness = {
+                id: session.business_id!,
+                name: "Organization",
+                kind: "team",
+              };
+              setBusinesses([autoBiz]);
+              setBizId(session.business_id!);
+            });
+        } else {
+          setBusinesses([]);
+          setBizId(null);
+        }
       })
       .catch(() => {
-        if (alive) {
+        if (!alive) return;
+        if (session.business_id) {
+          const autoBiz: OwnerBusiness = {
+            id: session.business_id,
+            name: "Organization",
+            kind: "team",
+          };
+          setBusinesses([autoBiz]);
+          setBizId(session.business_id);
+        } else {
           setBusinesses([]);
           setBizId(null);
         }
@@ -209,6 +274,41 @@ function App() {
       alive = false;
     };
   }, [session]);
+
+  // Dynamically compute permitted navigation groups based on authoritative role
+  const navGroups: NavGroup[] = useMemo(() => {
+    const groups: NavGroup[] = [
+      { key: "me", items: ["Dashboard", "Activity", "Browser", "Permissions"] },
+    ];
+
+    if (roleAccess.isAdmin) {
+      groups.push({
+        key: "admin",
+        items: ["TeamOverview", "Members", "Teams", "ScreenshotManagement", "AuditLogs"],
+      });
+    } else if (roleAccess.isHR) {
+      groups.push({
+        key: "hr",
+        items: ["TeamOverview", "Members", "Teams", "ScreenshotManagement"],
+      });
+    } else if (roleAccess.isTeamLead) {
+      groups.push({
+        key: "team",
+        items: ["TeamOverview", "Members"],
+      });
+    }
+
+    groups.push({ key: "app", items: ["Settings"] });
+    return groups;
+  }, [roleAccess.isAdmin, roleAccess.isHR, roleAccess.isTeamLead]);
+
+  // Route security guard: enforce that current screen is permitted for the active role
+  useEffect(() => {
+    const allowed = navGroups.flatMap((g) => g.items);
+    if (!allowed.includes(screen)) {
+      setScreen("Dashboard");
+    }
+  }, [navGroups, screen]);
 
   // Switching workspace drops any open member detail (it belongs to the old one).
   useEffect(() => {
@@ -405,7 +505,12 @@ function App() {
     );
   }
 
-  const isAdminScreen = screen === "TeamOverview" || screen === "Members";
+  const isManagementScreen =
+    screen === "TeamOverview" ||
+    screen === "Members" ||
+    screen === "Teams" ||
+    screen === "ScreenshotManagement" ||
+    screen === "AuditLogs";
   // On the Members tab, a drilled-in member's name replaces the section title.
   const headerTitle =
     screen === "Members" && memberDetail ? memberDetail.display_name : t(`nav.${screen}`);
@@ -447,7 +552,7 @@ function App() {
           </span>
         </div>
         <nav className="nav">
-          {NAV_GROUPS.filter((g) => g.key !== "admin" || isOwner).map((g) => (
+          {navGroups.map((g) => (
             <div key={g.key} className={`nav-group nav-group--${g.key}`}>
               {g.key !== "app" && (
                 <div className="nav-group__label">{t(`nav.group.${g.key}`)}</div>
@@ -491,8 +596,35 @@ function App() {
                       {session.email}
                     </span>
                   )}
-                  <span className="bb-role-badge">
-                    {session.role ? session.role.replace("_", " ") : (session.account_type || "employee")}
+                  <span
+                    className="bb-role-badge"
+                    style={{
+                      background: roleAccess.isAdmin
+                        ? "var(--accent)"
+                        : roleAccess.isHR
+                          ? "var(--data-mint)"
+                          : roleAccess.isTeamLead
+                            ? "var(--data-amber)"
+                            : "var(--bg-subtle)",
+                      color: roleAccess.isAdmin || roleAccess.isHR || roleAccess.isTeamLead
+                        ? "#000"
+                        : "var(--text)",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: 10,
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      alignSelf: "flex-start",
+                      marginTop: 4,
+                    }}
+                  >
+                    {roleAccess.role === "admin"
+                      ? "Administrator"
+                      : roleAccess.role === "hr"
+                        ? "HR Manager"
+                        : roleAccess.role === "team_lead"
+                          ? "Team Lead"
+                          : "Employee"}
                   </span>
                 </div>
               </div>
@@ -525,7 +657,7 @@ function App() {
         <header className="header">
           <h1>{headerTitle}</h1>
           <div className="header-right">
-            {isAdminScreen && businesses.length > 0 && (
+            {isManagementScreen && businesses.length > 0 && (
               <WorkspacePicker
                 businesses={businesses}
                 bizId={bizId}
@@ -625,6 +757,22 @@ function App() {
         </header>
 
         <main className="content">
+          {roleAccess.isSuspended && (
+            <div
+              className="perm-notice"
+              role="alert"
+              style={{
+                borderColor: "var(--data-rose)",
+                background: "color-mix(in srgb, var(--data-rose) 12%, var(--bg-card))",
+                marginBottom: 16,
+              }}
+            >
+              <div className="perm-notice__text">
+                <strong style={{ color: "var(--data-rose)" }}>Organization Membership Suspended</strong>
+                <span>Your organization account has been suspended by an administrator. Management capabilities are restricted.</span>
+              </div>
+            </div>
+          )}
           {permNotice && (
             <div className="perm-notice" role="alert">
               <div className="perm-notice__text">
@@ -674,7 +822,33 @@ function App() {
                 }}
                 detail={memberDetail}
                 onView={setMemberDetail}
+                roleAccess={roleAccess}
+                viewerEmployeeId={session?.employee_id}
               />
+            ) : (
+              <div className="muted bb-adminboard__msg">{t("loading")}</div>
+            ))}
+          {screen === "Teams" &&
+            (bizId ? (
+              <Teams
+                businessId={bizId}
+                canManageTeams={roleAccess.isAdmin || roleAccess.can("can_manage_team")}
+              />
+            ) : (
+              <div className="muted bb-adminboard__msg">{t("loading")}</div>
+            ))}
+          {screen === "ScreenshotManagement" &&
+            (bizId ? (
+              <ScreenshotManagement
+                businessId={bizId}
+                canManage={roleAccess.isAdmin || roleAccess.can("can_manage_screenshot_policy")}
+              />
+            ) : (
+              <div className="muted bb-adminboard__msg">{t("loading")}</div>
+            ))}
+          {screen === "AuditLogs" &&
+            (bizId ? (
+              <AuditLogs businessId={bizId} />
             ) : (
               <div className="muted bb-adminboard__msg">{t("loading")}</div>
             ))}

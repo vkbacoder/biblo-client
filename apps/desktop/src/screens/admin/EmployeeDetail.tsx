@@ -52,13 +52,21 @@ function memberStatus(lastSeen: number | null): Status {
 
 // Native per-employee detail: identity header + date controls + summary cards +
 // tabbed panels (activity / keystrokes / browser / screenshots). Data comes from
+// Native per-employee detail: identity header + date controls + summary cards +
+// tabbed panels (activity / keystrokes / browser / screenshots). Data comes from
 // the owner-scoped `admin_employee_*` commands (bearer via the tracker session).
 export function EmployeeDetail({
   employee,
   onBack,
+  isTeamLeadSelf = false,
+  canManagePolicy = false,
+  businessId,
 }: {
   employee: RosterEntry;
   onBack?: () => void;
+  isTeamLeadSelf?: boolean;
+  canManagePolicy?: boolean;
+  businessId?: string;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<"day" | "range">("day");
@@ -78,6 +86,8 @@ export function EmployeeDetail({
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captureMsg, setCaptureMsg] = useState<string | null>(null);
+  const [triggering, setTriggering] = useState(false);
 
   const load = useCallback(async () => {
     const [fromDate, toDate] = mode === "day" ? [day, day] : [from, to];
@@ -90,30 +100,61 @@ export function EmployeeDetail({
     setError(null);
     const id = employee.id;
     try {
-      const [a, k, b, s] = await Promise.all([
+      const promises: [
+        Promise<EmployeeActivity>,
+        Promise<KeystrokeBucketRow[]>,
+        Promise<BrowserVisitRow[]>,
+        Promise<{ screenshots: ScreenshotMetaRow[] }>,
+      ] = [
         invoke<EmployeeActivity>("admin_employee_activity", { employeeId: id, from: f, to: t2 }),
         invoke<KeystrokeBucketRow[]>("admin_employee_keystrokes", { employeeId: id, from: f, to: t2 }),
         invoke<BrowserVisitRow[]>("admin_employee_browser", { employeeId: id, from: f, to: t2 }),
-        invoke<{ screenshots: ScreenshotMetaRow[] }>("admin_employee_screenshots", {
-          employeeId: id, from: f, to: t2, limit: SHOTS_PAGE, offset: 0,
-        }),
-      ]);
+        isTeamLeadSelf
+          ? Promise.resolve({ screenshots: [] })
+          : invoke<{ screenshots: ScreenshotMetaRow[] }>("admin_employee_screenshots", {
+              employeeId: id,
+              from: f,
+              to: t2,
+              limit: SHOTS_PAGE,
+              offset: 0,
+            }),
+      ];
+      const [a, k, b, s] = await Promise.all(promises);
       setActivity(a);
       setKeystrokes(k);
       setVisits(b);
       setShots(s.screenshots);
       setShotsRange({ from: f, to: t2 });
-      setShotsMore(s.screenshots.length === SHOTS_PAGE);
+      setShotsMore(!isTeamLeadSelf && s.screenshots.length === SHOTS_PAGE);
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [employee.id, mode, day, from, to, t]);
+  }, [employee.id, mode, day, from, to, t, isTeamLeadSelf]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleTriggerCapture() {
+    if (!businessId || triggering) return;
+    setTriggering(true);
+    setCaptureMsg(null);
+    try {
+      await invoke("admin_create_screenshot_request", {
+        businessId,
+        employeeId: employee.id,
+      });
+      setCaptureMsg("Manual screenshot requested.");
+      setTimeout(() => setCaptureMsg(null), 3000);
+    } catch (err) {
+      setCaptureMsg(`Failed: ${err}`);
+      setTimeout(() => setCaptureMsg(null), 3000);
+    } finally {
+      setTriggering(false);
+    }
+  }
 
   async function loadMoreShots() {
     if (!shots || !shotsRange || loadingMore) return;
@@ -211,8 +252,26 @@ export function EmployeeDetail({
               </span>
             </>
           )}
+          {canManagePolicy && businessId && (
+            <button
+              type="button"
+              className="bibo-btn bibo-btn--secondary"
+              onClick={handleTriggerCapture}
+              disabled={triggering}
+              title="Request an immediate screenshot capture on this employee's active device"
+              style={{ marginLeft: 8 }}
+            >
+              <IconCamera /> {triggering ? "Requesting..." : "Capture Now"}
+            </button>
+          )}
         </div>
       </div>
+
+      {captureMsg && (
+        <div className="auth-success" style={{ background: "var(--accent-weak)", color: "var(--accent)", padding: "8px 12px", borderRadius: 6, marginBottom: 12 }}>
+          {captureMsg}
+        </div>
+      )}
 
       {error && <div className="auth-err" role="alert">{error}</div>}
 
@@ -241,8 +300,8 @@ export function EmployeeDetail({
         <StatCard
           icon={<IconCamera />}
           label={t("screens:detail.summary.screenshots")}
-          value={`${shots?.length ?? 0}${shotsMore ? "+" : ""}`}
-          sub={period}
+          value={isTeamLeadSelf ? "Restricted" : `${shots?.length ?? 0}${shotsMore ? "+" : ""}`}
+          sub={isTeamLeadSelf ? "Self Monitoring Denied" : period}
         />
       </div>
 
@@ -263,12 +322,23 @@ export function EmployeeDetail({
             {tab === "activity" && activity && <ActivityPanel data={activity} />}
             {tab === "keystrokes" && keystrokes && <KeystrokePanel buckets={keystrokes} />}
             {tab === "browser" && visits && <BrowserPanel visits={visits} />}
-            {tab === "screenshots" && shots && (
-              <ScreenshotGallery
-                shots={shots}
-                onLoadMore={shotsMore ? loadMoreShots : undefined}
-                loadingMore={loadingMore}
-              />
+            {tab === "screenshots" && (
+              isTeamLeadSelf ? (
+                <div className="card bb-adminboard__msg" style={{ padding: 36, textAlign: "center" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>
+                    Team Lead Privacy Protection
+                  </div>
+                  <div style={{ color: "var(--text-muted)", maxWidth: 500, margin: "0 auto", lineHeight: 1.5 }}>
+                    In compliance with enterprise privacy standards, team leads are prohibited from inspecting their own screenshots through the management monitoring interface.
+                  </div>
+                </div>
+              ) : shots ? (
+                <ScreenshotGallery
+                  shots={shots}
+                  onLoadMore={shotsMore ? loadMoreShots : undefined}
+                  loadingMore={loadingMore}
+                />
+              ) : null
             )}
           </>
         )}

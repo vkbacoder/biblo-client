@@ -547,8 +547,11 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 
 use crate::sync::client::BackendClient;
 
+pub mod rbac;
+pub use rbac::*;
+
 /// The backend base URL (compile-time default; env override for dev).
-fn backend_url() -> String {
+pub(crate) fn backend_url() -> String {
     crate::settings::backend_base_url()
 }
 
@@ -643,6 +646,14 @@ pub async fn admin_employee_screenshots(
     offset: u32,
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<crate::sync::client::ScreenshotPage, String> {
+    // Team lead self-exclusion: team leads must never view their own screenshots in team monitoring
+    if let Some(session) = auth.session() {
+        let is_tl = session.role.eq_ignore_ascii_case("team_lead")
+            || session.account_type.eq_ignore_ascii_case("team_lead");
+        if is_tl && session.resolved_employee_id() == employee_id {
+            return Err("Team leads cannot view their own screenshots in team monitoring".into());
+        }
+    }
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     client
         .owner_employee_screenshots(&employee_id, from, to, limit, offset)
@@ -1218,6 +1229,39 @@ mod tests {
         });
         settings.client_mode = true;
         assert!(!is_screenshot_authorized(&auth, &settings));
+
+        let _ = auth.clear();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn team_lead_cannot_view_own_screenshots_in_team_monitoring() {
+        let dir = std::env::temp_dir().join(format!("tl_shot_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let auth = AuthState::load(dir.join("session.json"));
+
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "lead@example.com".into(),
+            business_id: Some("biz_123".into()),
+            display_name: "Lead One".into(),
+            username: "leadone".into(),
+            account_type: "team_lead".into(),
+            role: "team_lead".into(),
+            employee_id: Some("emp_lead_01".into()),
+        });
+
+        let sess = auth.session().unwrap();
+        let target_emp = "emp_lead_01";
+        let is_tl = sess.role.eq_ignore_ascii_case("team_lead")
+            || sess.account_type.eq_ignore_ascii_case("team_lead");
+        let denied = is_tl && sess.resolved_employee_id() == target_emp;
+        assert!(denied, "Team lead must be denied viewing their own screenshots");
+
+        let target_other_emp = "emp_subordinate_02";
+        let denied_other = is_tl && sess.resolved_employee_id() == target_other_emp;
+        assert!(!denied_other, "Team lead may view subordinate screenshots");
 
         let _ = auth.clear();
         std::fs::remove_dir_all(&dir).ok();

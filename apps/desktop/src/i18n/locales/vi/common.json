@@ -12,9 +12,14 @@
     "Admin": "Quản trị",
     "TeamOverview": "Tổng quan nhóm",
     "Members": "Nhân viên",
+    "Teams": "Nhóm",
+    "ScreenshotManagement": "Ảnh chụp màn hình",
+    "AuditLogs": "Nhật ký kiểm toán",
     "group": {
       "me": "Của tôi",
-      "admin": "Quản trị"
+      "admin": "Quản trị",
+      "team": "Trưởng nhóm",
+      "hr": "Nhân sự"
     }
   },
   "status": {

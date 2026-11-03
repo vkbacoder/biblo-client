@@ -564,9 +564,84 @@ impl BackendClient {
             if !resp.status().is_success() {
                 return Err(status_err(resp).await);
             }
-            return resp.json().await.map_err(|e| e.to_string());
+            if resp.status() == reqwest::StatusCode::NO_CONTENT {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+            if bytes.is_empty() {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            return serde_json::from_slice(&bytes).map_err(|e| e.to_string());
         }
         Err("post_authed_json: unreachable retry exhaustion".into())
+    }
+
+    /// Generic authenticated PATCH request with auto-refresh on 401.
+    pub async fn patch_authed_json<B: Serialize, T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .patch(self.url(path))
+                .bearer_auth(&token)
+                .json(body)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            if resp.status() == reqwest::StatusCode::NO_CONTENT {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+            if bytes.is_empty() {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            return serde_json::from_slice(&bytes).map_err(|e| e.to_string());
+        }
+        Err("patch_authed_json: unreachable retry exhaustion".into())
+    }
+
+    /// Generic authenticated DELETE request with auto-refresh on 401.
+    pub async fn delete_authed_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+    ) -> Result<T, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .delete(self.url(path))
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            if resp.status() == reqwest::StatusCode::NO_CONTENT {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+            if bytes.is_empty() {
+                return serde_json::from_str("{}").map_err(|e| e.to_string());
+            }
+            return serde_json::from_slice(&bytes).map_err(|e| e.to_string());
+        }
+        Err("delete_authed_json: unreachable retry exhaustion".into())
     }
 }
 

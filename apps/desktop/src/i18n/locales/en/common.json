@@ -11,9 +11,14 @@
     "Admin": "Admin",
     "TeamOverview": "Team overview",
     "Members": "Members",
+    "Teams": "Teams",
+    "ScreenshotManagement": "Screenshots",
+    "AuditLogs": "Audit Logs",
     "group": {
       "me": "Personal",
-      "admin": "Admin"
+      "admin": "Admin",
+      "team": "Team Lead",
+      "hr": "Human Resources"
     }
   },
   "connection": {
