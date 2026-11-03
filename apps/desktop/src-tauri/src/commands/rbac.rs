@@ -2,8 +2,8 @@
 //! Communicates with the authoritative backend endpoints for organization hierarchy,
 //! team management, member roles, screenshot policy & requests, audit logs, and access control.
 
-use std::sync::Arc;
 use serde_json::Value;
+use std::sync::Arc;
 use tauri::State;
 
 use crate::commands::backend_url;
@@ -17,7 +17,9 @@ pub async fn admin_my_access(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/my-access")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}/my-access"))
+        .await
 }
 
 /// Fetch business details by ID.
@@ -27,7 +29,9 @@ pub async fn admin_business_detail(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}"))
+        .await
 }
 
 /// List all members in the organization.
@@ -37,7 +41,9 @@ pub async fn admin_members(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/members")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}/members"))
+        .await
 }
 
 /// List all teams (hierarchical) in the organization.
@@ -47,7 +53,9 @@ pub async fn admin_teams(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/teams")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}/teams"))
+        .await
 }
 
 /// List assigned members for a specific team.
@@ -58,7 +66,30 @@ pub async fn admin_team_members(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/teams/{team_id}/members")).await
+    // Attempt dedicated team members endpoint, falling back to org roster filtering
+    match client
+        .get_authed_json::<Value>(&format!(
+            "/v1/businesses/{business_id}/teams/{team_id}/members"
+        ))
+        .await
+    {
+        Ok(val) => Ok(val),
+        Err(_) => {
+            let members_val: Value = client
+                .get_authed_json(&format!("/v1/businesses/{business_id}/members"))
+                .await?;
+            if let Some(members_arr) = members_val.get("members").and_then(|m| m.as_array()) {
+                let filtered: Vec<Value> = members_arr
+                    .iter()
+                    .filter(|m| m.get("team_id").and_then(|t| t.as_str()) == Some(&team_id))
+                    .cloned()
+                    .collect();
+                Ok(serde_json::json!({ "members": filtered }))
+            } else {
+                Ok(members_val)
+            }
+        }
+    }
 }
 
 /// Create a new team in the business.
@@ -69,7 +100,9 @@ pub async fn admin_create_team(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(&format!("/v1/businesses/{business_id}/teams"), &body).await
+    client
+        .post_authed_json(&format!("/v1/businesses/{business_id}/teams"), &body)
+        .await
 }
 
 /// Update an existing team's name, description, or parent team.
@@ -81,7 +114,12 @@ pub async fn admin_update_team(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.patch_authed_json(&format!("/v1/businesses/{business_id}/teams/{team_id}"), &body).await
+    client
+        .patch_authed_json(
+            &format!("/v1/businesses/{business_id}/teams/{team_id}"),
+            &body,
+        )
+        .await
 }
 
 /// Delete an existing team.
@@ -92,7 +130,9 @@ pub async fn admin_delete_team(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.delete_authed_json(&format!("/v1/businesses/{business_id}/teams/{team_id}")).await
+    client
+        .delete_authed_json(&format!("/v1/businesses/{business_id}/teams/{team_id}"))
+        .await
 }
 
 /// Assign an employee/member to a team.
@@ -104,10 +144,12 @@ pub async fn admin_assign_team_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/teams/{team_id}/members/{user_id}"),
-        &serde_json::json!({}),
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/teams/{team_id}/members"),
+            &serde_json::json!({ "user_id": user_id }),
+        )
+        .await
 }
 
 /// Remove a member from a team.
@@ -119,9 +161,11 @@ pub async fn admin_remove_team_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.delete_authed_json(
-        &format!("/v1/businesses/{business_id}/teams/{team_id}/members/{user_id}"),
-    ).await
+    client
+        .delete_authed_json(&format!(
+            "/v1/businesses/{business_id}/teams/{team_id}/members/{user_id}"
+        ))
+        .await
 }
 
 /// Promote an employee to Team Lead.
@@ -133,10 +177,12 @@ pub async fn admin_promote_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/promote"),
-        &body,
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/members/{user_id}/promote"),
+            &body,
+        )
+        .await
 }
 
 /// Demote a Team Lead to standard Employee.
@@ -148,10 +194,12 @@ pub async fn admin_demote_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/demote"),
-        &body,
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/members/{user_id}/demote"),
+            &body,
+        )
+        .await
 }
 
 /// Suspend an employee/member.
@@ -163,10 +211,12 @@ pub async fn admin_suspend_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/suspend"),
-        &body,
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/members/{user_id}/suspend"),
+            &body,
+        )
+        .await
 }
 
 /// Reactivate a suspended member.
@@ -177,10 +227,12 @@ pub async fn admin_reactivate_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/reactivate"),
-        &serde_json::json!({}),
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/members/{user_id}/reactivate"),
+            &serde_json::json!({}),
+        )
+        .await
 }
 
 /// Remove a member from the organization completely.
@@ -191,9 +243,9 @@ pub async fn admin_remove_member(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.delete_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}"),
-    ).await
+    client
+        .delete_authed_json(&format!("/v1/businesses/{business_id}/members/{user_id}"))
+        .await
 }
 
 /// Get granular permissions for a member.
@@ -204,9 +256,11 @@ pub async fn admin_member_permissions(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/permissions"),
-    ).await
+    client
+        .get_authed_json(&format!(
+            "/v1/businesses/{business_id}/members/{user_id}/permissions"
+        ))
+        .await
 }
 
 /// Grant a granular permission to a member.
@@ -218,10 +272,12 @@ pub async fn admin_grant_permission(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/permissions"),
-        &body,
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/members/{user_id}/permissions"),
+            &body,
+        )
+        .await
 }
 
 /// Revoke a granular permission from a member.
@@ -233,9 +289,11 @@ pub async fn admin_revoke_permission(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.delete_authed_json(
-        &format!("/v1/businesses/{business_id}/members/{user_id}/permissions/{permission}"),
-    ).await
+    client
+        .delete_authed_json(&format!(
+            "/v1/businesses/{business_id}/members/{user_id}/permissions/{permission}"
+        ))
+        .await
 }
 
 /// Retrieve immutable organizational audit logs.
@@ -245,7 +303,9 @@ pub async fn admin_audit_logs(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/audit-logs")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}/audit-logs"))
+        .await
 }
 
 /// Retrieve org-level screenshot configuration & defaults.
@@ -255,7 +315,9 @@ pub async fn admin_screenshot_settings(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(&format!("/v1/businesses/{business_id}/screenshot-settings")).await
+    client
+        .get_authed_json(&format!("/v1/businesses/{business_id}/screenshot-settings"))
+        .await
 }
 
 /// Update org-level screenshot configuration.
@@ -266,10 +328,12 @@ pub async fn admin_update_screenshot_settings(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.patch_authed_json(
-        &format!("/v1/businesses/{business_id}/screenshot-settings"),
-        &body,
-    ).await
+    client
+        .patch_authed_json(
+            &format!("/v1/businesses/{business_id}/screenshot-settings"),
+            &body,
+        )
+        .await
 }
 
 /// Get effective per-employee screenshot policy override.
@@ -280,9 +344,11 @@ pub async fn admin_employee_screenshot_policy(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(
-        &format!("/v1/businesses/{business_id}/employees/{employee_id}/policy"),
-    ).await
+    client
+        .get_authed_json(&format!(
+            "/v1/businesses/{business_id}/employees/{employee_id}/policy"
+        ))
+        .await
 }
 
 /// Set per-employee screenshot policy override.
@@ -294,10 +360,12 @@ pub async fn admin_update_employee_screenshot_policy(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.patch_authed_json(
-        &format!("/v1/businesses/{business_id}/employees/{employee_id}/policy"),
-        &body,
-    ).await
+    client
+        .patch_authed_json(
+            &format!("/v1/businesses/{business_id}/employees/{employee_id}/policy"),
+            &body,
+        )
+        .await
 }
 
 /// Reset per-employee screenshot policy to org default.
@@ -308,9 +376,12 @@ pub async fn admin_reset_employee_screenshot_policy(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.delete_authed_json(
-        &format!("/v1/businesses/{business_id}/employees/{employee_id}/policy"),
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/employees/{employee_id}/policy/reset"),
+            &serde_json::json!({}),
+        )
+        .await
 }
 
 /// Create a manager-authorized manual screenshot capture request.
@@ -321,10 +392,12 @@ pub async fn admin_create_screenshot_request(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/screenshot-requests"),
-        &serde_json::json!({ "employee_id": employee_id }),
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/employees/{employee_id}/screenshot-requests"),
+            &serde_json::json!({ "expiry_minutes": 15 }),
+        )
+        .await
 }
 
 /// List screenshot requests for an employee.
@@ -335,9 +408,11 @@ pub async fn admin_employee_screenshot_requests(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.get_authed_json(
-        &format!("/v1/businesses/{business_id}/employees/{employee_id}/screenshot-requests"),
-    ).await
+    client
+        .get_authed_json(&format!(
+            "/v1/businesses/{business_id}/employees/{employee_id}/screenshot-requests"
+        ))
+        .await
 }
 
 /// Retry an expired or failed manual screenshot request.
@@ -348,10 +423,12 @@ pub async fn admin_retry_screenshot_request(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.post_authed_json(
-        &format!("/v1/businesses/{business_id}/screenshot-requests/{request_id}/retry"),
-        &serde_json::json!({}),
-    ).await
+    client
+        .post_authed_json(
+            &format!("/v1/businesses/{business_id}/screenshot-requests/{request_id}/retry"),
+            &serde_json::json!({}),
+        )
+        .await
 }
 
 /// Update organization settings.
@@ -362,8 +439,7 @@ pub async fn admin_update_business_settings(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Value, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.patch_authed_json(
-        &format!("/v1/businesses/{business_id}"),
-        &body,
-    ).await
+    client
+        .patch_authed_json(&format!("/v1/businesses/{business_id}/settings"), &body)
+        .await
 }

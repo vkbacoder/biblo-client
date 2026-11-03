@@ -1257,7 +1257,10 @@ mod tests {
         let is_tl = sess.role.eq_ignore_ascii_case("team_lead")
             || sess.account_type.eq_ignore_ascii_case("team_lead");
         let denied = is_tl && sess.resolved_employee_id() == target_emp;
-        assert!(denied, "Team lead must be denied viewing their own screenshots");
+        assert!(
+            denied,
+            "Team lead must be denied viewing their own screenshots"
+        );
 
         let target_other_emp = "emp_subordinate_02";
         let denied_other = is_tl && sess.resolved_employee_id() == target_other_emp;
