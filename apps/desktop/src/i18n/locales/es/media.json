@@ -21,7 +21,7 @@
     "colDuration": "Duración",
     "colBrowser": "Navegador",
     "title": "Seguir las páginas web",
-    "subtitle": "Instale la extensión BiBoTracking para ver aquí las páginas que visita.",
+    "subtitle": "Instale la extensión Finjulia para ver aquí las páginas que visita.",
     "gifPlaceholder": "[ GIF: instalación de la extensión de Chrome ]",
     "step1": "Abra Google Chrome",
     "step2Prefix": "Vaya a Chrome Web Store — ",
@@ -39,7 +39,7 @@
     "colWhen": "Cuándo"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "Finjulia",
     "stepOf": "Paso {{current}} de {{total}}"
   }
 }

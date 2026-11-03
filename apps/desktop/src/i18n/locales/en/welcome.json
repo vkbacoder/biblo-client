@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "Welcome to BiBoTracking",
+    "title": "Welcome to Finjulia",
     "sub": "Choose how you want to use the app.",
     "local": {
       "title": "Just me",
@@ -20,17 +20,17 @@
     "status": "Status",
     "paused": "Paused",
     "tracking": "Tracking",
-    "open": "Open BiBoTracking",
+    "open": "Open Finjulia",
     "start": "Start tracking",
     "stop": "Stop tracking",
-    "quit": "Quit BiBoTracking"
+    "quit": "Quit Finjulia"
   },
   "consent": {
-    "title": "What BiBoTracking captures",
+    "title": "What Finjulia captures",
     "subtitle": "Four kinds of activity. You are always in control.",
     "shots": {
       "t": "Screenshots",
-      "d": "Blurred thumbnails on an interval you set."
+      "d": "Captured according to your organization's server policy."
     },
     "keys": {
       "t": "Keystrokes",

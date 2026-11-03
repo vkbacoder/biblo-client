@@ -1,5 +1,5 @@
 // Thin wrapper around Tauri's `invoke` that logs every command call (name + duration)
-// and warns on rejection, so the console/Sentry breadcrumbs show the IPC timeline.
+// and warns on rejection, so the console logs show the IPC timeline.
 // Screens import this as `invoke` (aliased), so existing call sites are unchanged.
 import { invoke as tauriInvoke, type InvokeArgs } from "@tauri-apps/api/core";
 import { log } from "./log";

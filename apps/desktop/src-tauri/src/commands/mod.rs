@@ -11,7 +11,14 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::platform::{self, CapabilityRow, Permission};
+use crate::policy::{
+    EffectiveScreenshotPolicy, ManualCaptureRequest, ManualCaptureResult, ScreenshotPolicyManager,
+    ServerScreenshotPolicy,
+};
+use crate::settings::{Settings, SettingsState};
 use crate::storage::Db;
+use crate::sync::auth::{AuthState, Session};
+use crate::sync::ScreenshotPolicyAdapter;
 use crate::trackers::TrackerControl;
 
 /// Temporary smoke-test command kept from the scaffold; remove once real
@@ -33,25 +40,6 @@ pub fn set_paused(paused: bool, app: tauri::AppHandle) {
 #[tauri::command]
 pub fn set_in_setup(in_setup: bool, app: tauri::AppHandle) {
     crate::tray::set_in_setup(&app, in_setup);
-}
-
-/// Product analytics from the web UI (e.g. `app_active`, `ui_click`). Reuses the same
-/// Aptabase pipeline as `app_started` — per-launch session, batching, offline
-/// queue. Fire-and-forget: never fails the caller. `props` carry event-specific fields.
-#[tauri::command]
-pub fn track_event(
-    name: String,
-    props: Option<serde_json::Value>,
-    app: tauri::AppHandle,
-    settings: State<Arc<crate::settings::SettingsState>>,
-    session: State<crate::analytics::AnalyticsSession>,
-) {
-    use tauri::Manager;
-    let locale = settings.current.lock().unwrap().locale.clone();
-    let Ok(data_dir) = app.path().app_data_dir() else {
-        return;
-    };
-    crate::analytics::track_event(name, locale, session.0.clone(), data_dir.join("analytics-queue"), props);
 }
 
 #[tauri::command]
@@ -242,19 +230,82 @@ pub fn browser_link(link: State<crate::server::BrowserLink>) -> BrowserLinkInfo 
     }
 }
 
+/// Determine if the current session and settings authorize full screenshot access.
+///
+/// Authorized internal monitoring roles:
+/// - Users with role or account_type: `owner`, `manager`, `admin`
+/// - Standalone local users (unless `client_mode` is enabled)
+///
+/// Restricted client / unauthorized roles:
+/// - Any user with `client_mode` enabled in settings
+/// - Users with role or account_type: `client`, `viewer`
+/// - Standard employees in client-restricted context
+pub fn is_screenshot_authorized(auth: &AuthState, settings: &Settings) -> bool {
+    // If client mode is enabled in settings, force client-restricted view
+    if settings.client_mode {
+        return false;
+    }
+
+    if let Some(session) = auth.session() {
+        let role = session.role.to_lowercase();
+        let account_type = session.account_type.to_lowercase();
+
+        // Explicit client or viewer roles are unauthorized
+        if role == "client"
+            || account_type == "client"
+            || role == "viewer"
+            || account_type == "viewer"
+        {
+            return false;
+        }
+
+        // Explicitly authorized internal monitoring roles (owner, manager, admin, team_lead)
+        if role == "owner"
+            || role == "manager"
+            || role == "admin"
+            || role == "team_lead"
+            || role == "teamlead"
+            || account_type == "owner"
+            || account_type == "manager"
+            || account_type == "admin"
+            || account_type == "team_lead"
+            || account_type == "teamlead"
+        {
+            return true;
+        }
+
+        // Standard employees are tracked subjects, not internal monitors
+        false
+    } else {
+        // Standalone local user (no account): authorized unless client_mode is toggled on
+        !settings.client_mode
+    }
+}
+
 /// Capture a screenshot of every display right now. Returns how many were saved.
+/// Restricted to authorized internal monitoring roles and gated by server policy.
 #[tauri::command]
 pub fn capture_now(
     app: tauri::AppHandle,
     db: State<Arc<Db>>,
     control: State<Arc<TrackerControl>>,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<SettingsState>>,
+    policy_manager: State<Arc<ScreenshotPolicyManager>>,
 ) -> Result<usize, String> {
+    let s = settings.current.lock().unwrap().clone();
+    if !is_screenshot_authorized(&auth, &s) {
+        return Err("Access denied: Screenshot capture can only be commanded by authorized internal monitoring roles".into());
+    }
+    let eff = policy_manager.effective_policy();
+    if !eff.capture_enabled {
+        return Err("Screenshot capture is disabled by server policy".into());
+    }
+    if !eff.manual_capture_enabled {
+        return Err("Manual screenshot capture is not permitted by server policy".into());
+    }
     use tauri::Manager;
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(err)?
-        .join("screenshots");
+    let dir = app.path().app_data_dir().map_err(err)?.join("screenshots");
     Ok(crate::trackers::capture_once(&db, &dir, &control))
 }
 
@@ -330,13 +381,63 @@ pub fn dashboard_data(
     })
 }
 
+/// Aggregated summary of screenshots for client-facing or unauthorized views.
+/// Exposes total count and hourly buckets without revealing individual files or exact timestamps.
+#[derive(Serialize)]
+pub struct ScreenshotSummary {
+    pub authorized: bool,
+    pub total_count: i64,
+    pub period_start: i64,
+    pub period_end: i64,
+    pub hourly_counts: Vec<(i64, i64)>,
+}
+
+/// Aggregated screenshot summary command. Always safe to call for both authorized
+/// internal monitoring and client-facing views.
+#[tauri::command]
+pub fn screenshot_summary(
+    from_ts: i64,
+    to_ts: i64,
+    db: State<Arc<Db>>,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<SettingsState>>,
+) -> Result<ScreenshotSummary, String> {
+    let s = settings.current.lock().unwrap().clone();
+    let authorized = is_screenshot_authorized(&auth, &s);
+    let rows = db.screenshots_between(from_ts, to_ts).map_err(err)?;
+    let total_count = rows.len() as i64;
+
+    let mut buckets: std::collections::BTreeMap<i64, i64> = std::collections::BTreeMap::new();
+    for r in rows {
+        let hour_bucket = (r.ts / 3600) * 3600;
+        *buckets.entry(hour_bucket).or_insert(0) += 1;
+    }
+    let hourly_counts = buckets.into_iter().collect();
+
+    Ok(ScreenshotSummary {
+        authorized,
+        total_count,
+        period_start: from_ts,
+        period_end: to_ts,
+        hourly_counts,
+    })
+}
+
 /// Screenshots captured in `[from_ts, to_ts)` (newest first), for the gallery.
+/// Restricted to authorized internal monitoring roles. For clients or unauthorized
+/// callers, returns an empty list, preventing access to image files and exact timestamps.
 #[tauri::command]
 pub fn screenshot_list(
     from_ts: i64,
     to_ts: i64,
     db: State<Arc<Db>>,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<SettingsState>>,
 ) -> Result<Vec<crate::storage::Screenshot>, String> {
+    let s = settings.current.lock().unwrap().clone();
+    if !is_screenshot_authorized(&auth, &s) {
+        return Ok(Vec::new());
+    }
     let mut rows = db.screenshots_between(from_ts, to_ts).map_err(err)?;
     rows.reverse(); // newest first
     Ok(rows)
@@ -378,8 +479,12 @@ pub fn export_json(
     from_ts: i64,
     to_ts: i64,
     db: State<Arc<Db>>,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<SettingsState>>,
 ) -> Result<ExportSummary, String> {
-    export_json_to_dir(&db, &dir, from_ts, to_ts)
+    let s = settings.current.lock().unwrap().clone();
+    let authorized = is_screenshot_authorized(&auth, &s);
+    export_json_to_dir_filtered(&db, &dir, from_ts, to_ts, authorized)
 }
 
 /// Testable core of [`export_json`].
@@ -389,6 +494,16 @@ pub fn export_json_to_dir(
     from_ts: i64,
     to_ts: i64,
 ) -> Result<ExportSummary, String> {
+    export_json_to_dir_filtered(db, dir, from_ts, to_ts, true)
+}
+
+pub fn export_json_to_dir_filtered(
+    db: &Db,
+    dir: &str,
+    from_ts: i64,
+    to_ts: i64,
+    include_screenshots: bool,
+) -> Result<ExportSummary, String> {
     use std::path::Path;
     let activity = db.activity_between(from_ts, to_ts).map_err(err)?;
     let keystrokes: Vec<KeystrokeRow> = db
@@ -397,7 +512,11 @@ pub fn export_json_to_dir(
         .into_iter()
         .map(|(ts_bucket, count)| KeystrokeRow { ts_bucket, count })
         .collect();
-    let screenshots = db.screenshots_between(from_ts, to_ts).map_err(err)?;
+    let screenshots = if include_screenshots {
+        db.screenshots_between(from_ts, to_ts).map_err(err)?
+    } else {
+        Vec::new()
+    };
     let visits = db.browser_visits_between(from_ts, to_ts).map_err(err)?;
 
     let rows = activity.len() + keystrokes.len() + screenshots.len() + visits.len();
@@ -426,7 +545,6 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 
 // ---------- auth / session (task 51) ----------
 
-use crate::sync::auth::{AuthState, Session};
 use crate::sync::client::BackendClient;
 
 /// The backend base URL (compile-time default; env override for dev).
@@ -497,7 +615,9 @@ pub async fn admin_employee_keystrokes(
     auth: State<'_, Arc<AuthState>>,
 ) -> Result<Vec<crate::sync::client::KeystrokeBucketRow>, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.owner_employee_keystrokes(&employee_id, from, to).await
+    client
+        .owner_employee_keystrokes(&employee_id, from, to)
+        .await
 }
 
 /// Browser page visits for one employee in `[from, to)`.
@@ -632,25 +752,37 @@ pub async fn message_event(
 }
 
 /// Log in and persist the session to disk. Wrong credentials surface a clear error
-/// and store nothing.
+/// and store nothing. Synchronizes server screenshot policy upon successful login.
 #[tauri::command]
 pub async fn login(
     email: String,
     password: String,
     business_id: Option<String>,
     auth: State<'_, Arc<AuthState>>,
+    _policy_manager: State<'_, Arc<ScreenshotPolicyManager>>,
+    adapter: State<'_, Arc<ScreenshotPolicyAdapter>>,
 ) -> Result<Session, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let session = client
         .login(&email, &password, business_id.as_deref())
         .await?;
     auth.store(session.clone())?;
+
+    // Refresh policy for newly logged-in employee (transitions to fail-closed if endpoint unavailable)
+    let emp_id = session.resolved_employee_id();
+    let _ = adapter.sync_policy(&emp_id).await;
+
     Ok(session)
 }
 
-/// Clear the stored session (Keychain + memory).
+/// Clear the stored session (Keychain + memory) and invalidate server policy.
 #[tauri::command]
-pub fn logout(auth: State<Arc<AuthState>>) -> Result<(), String> {
+pub fn logout(
+    auth: State<Arc<AuthState>>,
+    policy_manager: State<Arc<ScreenshotPolicyManager>>,
+    control: State<Arc<TrackerControl>>,
+) -> Result<(), String> {
+    policy_manager.invalidate_on_logout(Some(&control));
     auth.clear()
 }
 
@@ -680,6 +812,68 @@ pub fn sync_status(status: State<Arc<crate::sync::worker::SyncStatus>>) -> SyncS
     }
 }
 
+// ---------- screenshot policy (server-controlled) ----------
+
+/// Get the effective server screenshot policy status for UI and controllers.
+#[tauri::command]
+pub fn screenshot_policy_status(
+    policy_manager: State<Arc<ScreenshotPolicyManager>>,
+) -> EffectiveScreenshotPolicy {
+    policy_manager.effective_policy()
+}
+
+/// Refresh the screenshot policy with the server.
+#[tauri::command]
+pub async fn screenshot_policy_refresh(
+    adapter: State<'_, Arc<ScreenshotPolicyAdapter>>,
+    auth: State<'_, Arc<AuthState>>,
+) -> Result<EffectiveScreenshotPolicy, String> {
+    let emp_id = auth
+        .session()
+        .map(|s| s.resolved_employee_id())
+        .unwrap_or_default();
+    Ok(adapter.sync_policy(&emp_id).await)
+}
+
+/// Process an authenticated manual capture request from the server.
+#[tauri::command]
+pub fn screenshot_manual_request(
+    request: ManualCaptureRequest,
+    app: tauri::AppHandle,
+    db: State<Arc<Db>>,
+    control: State<Arc<TrackerControl>>,
+    auth: State<Arc<AuthState>>,
+    policy_manager: State<Arc<ScreenshotPolicyManager>>,
+) -> Result<ManualCaptureResult, String> {
+    use tauri::Manager;
+    let dir = app.path().app_data_dir().map_err(err)?.join("screenshots");
+    let current_emp = auth
+        .session()
+        .map(|s| s.resolved_employee_id())
+        .unwrap_or_default();
+    let now = crate::now_unix();
+    let res = crate::policy::process_manual_capture(
+        request,
+        &current_emp,
+        &db,
+        &dir,
+        &control,
+        &policy_manager,
+        now,
+    );
+    Ok(res)
+}
+
+/// Simulation command for testing server policy updates.
+#[tauri::command]
+pub fn screenshot_policy_simulate_update(
+    policy: ServerScreenshotPolicy,
+    control: State<Arc<TrackerControl>>,
+    policy_manager: State<Arc<ScreenshotPolicyManager>>,
+) -> Result<EffectiveScreenshotPolicy, String> {
+    policy_manager.apply_server_policy(policy, Some(&control))
+}
+
 // ---------- export ----------
 
 #[derive(Serialize)]
@@ -706,8 +900,12 @@ pub fn export_csv(
     from_ts: i64,
     to_ts: i64,
     db: State<Arc<Db>>,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<SettingsState>>,
 ) -> Result<ExportSummary, String> {
-    export_to_dir(&db, &dir, from_ts, to_ts)
+    let s = settings.current.lock().unwrap().clone();
+    let authorized = is_screenshot_authorized(&auth, &s);
+    export_to_dir_filtered(&db, &dir, from_ts, to_ts, authorized)
 }
 
 /// Testable core of [`export_csv`] — no Tauri state, just a DB + destination.
@@ -716,6 +914,16 @@ pub fn export_to_dir(
     dir: &str,
     from_ts: i64,
     to_ts: i64,
+) -> Result<ExportSummary, String> {
+    export_to_dir_filtered(db, dir, from_ts, to_ts, true)
+}
+
+pub fn export_to_dir_filtered(
+    db: &Db,
+    dir: &str,
+    from_ts: i64,
+    to_ts: i64,
+    include_screenshots: bool,
 ) -> Result<ExportSummary, String> {
     use std::path::Path;
     let base = Path::new(dir);
@@ -761,7 +969,7 @@ pub fn export_to_dir(
     }
 
     // screenshot
-    {
+    if include_screenshots {
         let rows = db.screenshots_between(from_ts, to_ts).map_err(err)?;
         let mut w = csv::Writer::from_path(base.join("screenshot.csv")).map_err(err)?;
         w.write_record(["ts", "file_path", "display_id", "width", "height"])
@@ -831,7 +1039,8 @@ mod tests {
         })
         .unwrap();
 
-        let dir = std::env::temp_dir().join(format!("ctracking_export_test_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("ctracking_export_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let summary = export_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
         assert_eq!(summary.files.len(), 4);
@@ -859,8 +1068,7 @@ mod tests {
         .unwrap();
         db.add_keystrokes(60, 9).unwrap();
 
-        let dir =
-            std::env::temp_dir().join(format!("ctracking_json_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("ctracking_json_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         export_json_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
 
@@ -869,6 +1077,177 @@ mod tests {
         assert_eq!(v["activity_sample"][0]["app_name"], "Code");
         assert_eq!(v["keystroke_bucket"][0]["count"], 9);
         assert!(v["screenshot"].is_array() && v["browser_visit"].is_array());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn screenshot_authorization_roles() {
+        let dir = std::env::temp_dir().join(format!("auth_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let auth = AuthState::load(dir.join("session.json"));
+        let mut settings = Settings::default();
+
+        // 1. Standalone user, client_mode = false -> authorized
+        settings.client_mode = false;
+        assert!(is_screenshot_authorized(&auth, &settings));
+
+        // 2. Standalone user, client_mode = true -> unauthorized
+        settings.client_mode = true;
+        assert!(!is_screenshot_authorized(&auth, &settings));
+
+        settings.client_mode = false;
+
+        // 3. Client role -> unauthorized
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "client@example.com".into(),
+            business_id: None,
+            display_name: "Client".into(),
+            username: "client".into(),
+            account_type: "client".into(),
+            role: "client".into(),
+            employee_id: None,
+        });
+        assert!(!is_screenshot_authorized(&auth, &settings));
+
+        // 4. Employee role -> unauthorized
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "emp@example.com".into(),
+            business_id: None,
+            display_name: "Employee".into(),
+            username: "emp".into(),
+            account_type: "employee".into(),
+            role: "employee".into(),
+            employee_id: None,
+        });
+        assert!(!is_screenshot_authorized(&auth, &settings));
+
+        // 5. Owner role -> authorized
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "owner@example.com".into(),
+            business_id: None,
+            display_name: "Owner".into(),
+            username: "owner".into(),
+            account_type: "manager".into(),
+            role: "owner".into(),
+            employee_id: None,
+        });
+        assert!(is_screenshot_authorized(&auth, &settings));
+
+        // 6. Team Lead role -> authorized
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "teamlead@example.com".into(),
+            business_id: None,
+            display_name: "Team Lead".into(),
+            username: "teamlead".into(),
+            account_type: "team_lead".into(),
+            role: "team_lead".into(),
+            employee_id: Some("emp_identity_01".into()),
+        });
+        settings.client_mode = false;
+        assert!(is_screenshot_authorized(&auth, &settings));
+
+        // 7. Promotion and Demotion preserves identity while updating role authorization:
+        // Start as employee -> unauthorized
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "user@example.com".into(),
+            business_id: Some("biz_123".into()),
+            display_name: "User One".into(),
+            username: "userone".into(),
+            account_type: "employee".into(),
+            role: "employee".into(),
+            employee_id: Some("emp_identity_01".into()),
+        });
+        assert!(!is_screenshot_authorized(&auth, &settings));
+        let sess1 = auth.session().unwrap();
+        assert_eq!(sess1.resolved_employee_id(), "emp_identity_01");
+
+        // Promote to team_lead -> authorized, identity preserved
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "user@example.com".into(),
+            business_id: Some("biz_123".into()),
+            display_name: "User One".into(),
+            username: "userone".into(),
+            account_type: "team_lead".into(),
+            role: "team_lead".into(),
+            employee_id: Some("emp_identity_01".into()),
+        });
+        assert!(is_screenshot_authorized(&auth, &settings));
+        let sess2 = auth.session().unwrap();
+        assert_eq!(sess2.resolved_employee_id(), "emp_identity_01");
+
+        // Demote back to employee -> unauthorized, identity preserved
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "user@example.com".into(),
+            business_id: Some("biz_123".into()),
+            display_name: "User One".into(),
+            username: "userone".into(),
+            account_type: "employee".into(),
+            role: "employee".into(),
+            employee_id: Some("emp_identity_01".into()),
+        });
+        assert!(!is_screenshot_authorized(&auth, &settings));
+        let sess3 = auth.session().unwrap();
+        assert_eq!(sess3.resolved_employee_id(), "emp_identity_01");
+
+        // 8. Owner with client_mode turned on -> unauthorized (restricted view active)
+        let _ = auth.store(Session {
+            access_token: "tok".into(),
+            refresh_token: "ref".into(),
+            email: "owner@example.com".into(),
+            business_id: None,
+            display_name: "Owner".into(),
+            username: "owner".into(),
+            account_type: "manager".into(),
+            role: "owner".into(),
+            employee_id: None,
+        });
+        settings.client_mode = true;
+        assert!(!is_screenshot_authorized(&auth, &settings));
+
+        let _ = auth.clear();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn export_filters_screenshots_when_unauthorized() {
+        let db = Db::open_in_memory().unwrap();
+        db.insert_screenshot(&crate::storage::Screenshot {
+            ts: 1000,
+            file_path: "/path/to/shot.webp".into(),
+            display_id: Some(1),
+            width: Some(1920),
+            height: Some(1080),
+        })
+        .unwrap();
+
+        let dir = std::env::temp_dir().join(format!("filter_export_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Filtered JSON export (unauthorized: include_screenshots = false)
+        export_json_to_dir_filtered(&db, dir.to_str().unwrap(), 0, i64::MAX, false).unwrap();
+        let text = std::fs::read_to_string(dir.join("employeetrack_export.json")).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(v["screenshot"].as_array().unwrap().len(), 0);
+
+        // Filtered CSV export (unauthorized: include_screenshots = false)
+        let summary =
+            export_to_dir_filtered(&db, dir.to_str().unwrap(), 0, i64::MAX, false).unwrap();
+        assert!(!summary.files.iter().any(|f| f.name == "screenshot.csv"));
 
         std::fs::remove_dir_all(&dir).ok();
     }

@@ -30,6 +30,30 @@ pub struct Session {
     /// Account type (e.g. `owner`), used by the UI to gate the Admin section.
     #[serde(default)]
     pub account_type: String,
+    /// User role (e.g. `owner`, `manager`, `admin`, `employee`, `client`).
+    #[serde(default)]
+    pub role: String,
+    /// Explicit employee ID, if returned by backend identity or provisioning.
+    #[serde(default)]
+    pub employee_id: Option<String>,
+}
+
+impl Session {
+    /// Return the effective employee identifier for policy matching.
+    pub fn resolved_employee_id(&self) -> String {
+        if let Some(ref id) = self.employee_id {
+            if !id.is_empty() {
+                return id.clone();
+            }
+        }
+        if !self.email.is_empty() {
+            self.email.clone()
+        } else if !self.username.is_empty() {
+            self.username.clone()
+        } else {
+            "unknown".to_string()
+        }
+    }
 }
 
 /// Managed Tauri state: the current session, mirrored to a file on disk.

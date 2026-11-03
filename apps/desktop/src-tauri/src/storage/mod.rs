@@ -16,7 +16,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 /// Latest schema version. Bump when adding a migration below.
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 /// A fresh client-generated UUID (v4), the backend's natural sync key.
 fn new_uuid() -> String {
@@ -113,6 +113,8 @@ pub struct PendingScreenshot {
     pub width: Option<i64>,
     pub height: Option<i64>,
     pub updated_at: i64,
+    pub request_id: Option<String>,
+    pub capture_source: String,
 }
 
 impl Db {
@@ -151,6 +153,11 @@ impl Db {
         if version < 2 {
             Self::migrate_2(&conn)?;
             version = 2;
+        }
+
+        if version < 3 {
+            Self::migrate_3(&conn)?;
+            version = 3;
         }
 
         conn.pragma_update(None, "user_version", version)?;
@@ -211,6 +218,18 @@ impl Db {
         Ok(())
     }
 
+    /// Migration v3: add `request_id` and explicit `capture_source` ('automatic' vs 'manual')
+    /// to the `screenshot` table.
+    fn migrate_3(conn: &Connection) -> Result<()> {
+        conn.execute_batch(
+            "ALTER TABLE screenshot ADD COLUMN request_id TEXT;
+             ALTER TABLE screenshot ADD COLUMN capture_source TEXT NOT NULL DEFAULT 'automatic';
+             CREATE INDEX IF NOT EXISTS idx_screenshot_source ON screenshot(capture_source);
+             CREATE INDEX IF NOT EXISTS idx_screenshot_request_id ON screenshot(request_id) WHERE request_id IS NOT NULL;",
+        )?;
+        Ok(())
+    }
+
     // ---------- inserts ----------
 
     pub fn insert_activity_sample(&self, s: &ActivitySample) -> Result<i64> {
@@ -252,19 +271,35 @@ impl Db {
     }
 
     pub fn insert_screenshot(&self, s: &Screenshot) -> Result<i64> {
+        self.insert_screenshot_full(s, &new_uuid(), None, "automatic")
+    }
+
+    pub fn insert_screenshot_with_uuid(&self, s: &Screenshot, client_uuid: &str) -> Result<i64> {
+        self.insert_screenshot_full(s, client_uuid, None, "automatic")
+    }
+
+    pub fn insert_screenshot_full(
+        &self,
+        s: &Screenshot,
+        client_uuid: &str,
+        request_id: Option<&str>,
+        capture_source: &str,
+    ) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO screenshot
-               (ts, file_path, display_id, width, height, client_uuid, synced, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)",
+               (ts, file_path, display_id, width, height, client_uuid, synced, updated_at, request_id, capture_source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9)",
             params![
                 s.ts,
                 s.file_path,
                 s.display_id,
                 s.width,
                 s.height,
-                new_uuid(),
-                now_secs()
+                client_uuid,
+                now_secs(),
+                request_id,
+                capture_source,
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -453,7 +488,7 @@ impl Db {
     pub fn pending_screenshots(&self, limit: i64) -> Result<Vec<PendingScreenshot>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT client_uuid, ts, file_path, display_id, width, height, updated_at
+            "SELECT client_uuid, ts, file_path, display_id, width, height, updated_at, request_id, capture_source
              FROM screenshot WHERE synced = 0 ORDER BY id LIMIT ?1",
         )?;
         let rows = stmt
@@ -466,6 +501,10 @@ impl Db {
                     width: r.get(4)?,
                     height: r.get(5)?,
                     updated_at: r.get(6)?,
+                    request_id: r.get(7)?,
+                    capture_source: r
+                        .get::<_, Option<String>>(8)?
+                        .unwrap_or_else(|| "automatic".to_string()),
                 })
             })?
             .collect::<Result<Vec<_>>>()?;
@@ -764,5 +803,24 @@ mod tests {
             .unwrap();
         }
         assert_eq!(db.activity_between(50, 500).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn migration_v3_adds_capture_source_and_request_id() {
+        let db = db();
+        let shot = Screenshot {
+            ts: 100,
+            file_path: "/tmp/shot.webp".into(),
+            display_id: Some(0),
+            width: Some(1920),
+            height: Some(1080),
+        };
+        db.insert_screenshot_full(&shot, "uuid-test-v3", Some("req-test-v3"), "manual")
+            .unwrap();
+        let pending = db.pending_screenshots(10).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].client_uuid, "uuid-test-v3");
+        assert_eq!(pending[0].request_id.as_deref(), Some("req-test-v3"));
+        assert_eq!(pending[0].capture_source, "manual");
     }
 }

@@ -1,32 +1,38 @@
-/* ctracking — semantic design tokens (see docs/07-ui-design.md) */
+/* Finjulia — semantic design tokens (Finlytyx AI Labs design system) */
 
 :root,
 :root[data-theme="light"] {
   --bg: #ffffff;
-  --bg-subtle: #f1f2f6;
-  --bg-inset: #f6f7fa;
-  --border: #e8e8ef;
-  --border-subtle: rgba(20, 22, 27, 0.07);
-  --text: #1a1a22;
-  --text-muted: #6b6b78;
-  --accent: #6c5ce7;
-  --accent-weak: #ece9fd;
-  --danger: #c0392b;
-  --success: #2e7d55;
-  --warn: #b8860b;
+  --bg-subtle: #f8fafc;
+  --bg-inset: #f1f5f9;
+  --border: #e2e8f0;
+  --border-subtle: rgba(15, 23, 42, 0.06);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-weak: #eff6ff;
+  --accent-glow: rgba(37, 99, 235, 0.25);
+  --brand-gradient: linear-gradient(135deg, #2563eb 0%, #6366f1 50%, #7c3aed 100%);
+  --brand-strip: linear-gradient(90deg, #2563eb 0%, #6366f1 50%, #7c3aed 100%);
+  --danger: #ef4444;
+  --success: #10b981;
+  --warn: #f59e0b;
   /* data-viz palette (Today's timeline): one hue per app, never a rainbow per
      segment. Shared across light/dark (vivid on both). */
-  --data-lavender: #8b7cf0;
-  --data-mint: #34d399;
-  --data-sky: #38bdf8;
-  --data-amber: #f5b13c;
-  --data-teal: #2dd4bf;
-  --data-rose: #fb7185;
+  --data-lavender: #6366f1;
+  --data-mint: #10b981;
+  --data-sky: #0284c7;
+  --data-amber: #f59e0b;
+  --data-teal: #14b8a6;
+  --data-rose: #f43f5e;
   /* fallback so shared tray/.welcome components that reference --brand still work
-     outside the .welcome scope (where --brand is the purple accent) */
+     outside the .welcome scope */
   --brand: var(--accent);
 
-  --radius: 18px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -39,28 +45,33 @@
   --fz-md: 16px;
   --fz-lg: 22px;
 
-  /* Clean, flat surfaces (light = all white; dark below).
-     The bold mesh gradient was removed — surfaces are opaque, not glass. */
+  /* Clean, flat enterprise surfaces */
   --app-base: #ffffff;
   --surface: #ffffff;
   --surface-strong: #ffffff;
 }
 
 :root[data-theme="dark"] {
-  --bg: #14161f;
-  --bg-subtle: #191b24;
-  --bg-inset: #1c1e28;
-  --border: #252833;
-  --text: #e8e8f0;
-  --text-muted: #9696a6;
-  --accent: #8b7cf0;
-  --accent-weak: #2a2540;
-  --danger: #e06a5c;
-  --success: #5fb58a;
-  --warn: #d6a93b;
-  --app-base: #0a0c11;
-  --surface: #14161f;
-  --surface-strong: #14161f;
+  --bg: #0f172a;
+  --bg-subtle: #1e293b;
+  --bg-inset: #162032;
+  --border: #1e293b;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-weak: rgba(59, 130, 246, 0.16);
+  --accent-glow: rgba(59, 130, 246, 0.35);
+  --brand-gradient: linear-gradient(135deg, #2563eb 0%, #6366f1 50%, #7c3aed 100%);
+  --brand-strip: linear-gradient(90deg, #2563eb 0%, #6366f1 50%, #7c3aed 100%);
+  --brand: var(--accent);
+  --danger: #f87171;
+  --success: #34d399;
+  --warn: #fbbf24;
+  --app-base: #0b0f19;
+  --surface: #131b2e;
+  --surface-strong: #1e293b;
 }
 
 * {
@@ -126,13 +137,24 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+.app-titlebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--brand-strip);
+  z-index: 100;
+}
 .app-titlebar-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
+  letter-spacing: -0.01em;
   pointer-events: none;
 }
 /* children stay interactive; only the empty strip drags */
@@ -144,42 +166,48 @@ body {
 :root[data-theme="light"] .app-titlebar {
   border-bottom-color: transparent;
 }
-/* dark mode: content is the darkest well; title bar, header and sidebar sit on
-   top as subtle translucent lifts */
+/* dark mode: content is the deepest well; title bar, header and sidebar sit on
+   top as clean dark slate lifts */
 :root[data-theme="dark"] .content {
-  background: #171a25;
+  background: #0b0f19;
 }
 :root[data-theme="dark"] .app-titlebar {
-  background: #2c303a;
+  background: #0f172a;
+  border-bottom-color: #1e293b;
 }
 :root[data-theme="dark"] .header {
-  background: #2c303a;
+  background: #0f172a;
+  border-bottom-color: #1e293b;
 }
 :root[data-theme="dark"] .sidebar {
-  background: #242731;
+  background: #0f172a;
+  border-right-color: #1e293b;
 }
 :root[data-theme="dark"] .account-box {
-  background: #10141d;
+  background: #162032;
+  border-color: #1e293b;
 }
 :root[data-theme="dark"] .lang-trigger {
-  background: #1f2633;
+  background: #162032;
+  border-color: #1e293b;
 }
 :root[data-theme="dark"] .bb-trackpill {
-  background: #1b212d;
-  border-color: #353a45;
+  background: #162032;
+  border-color: #1e293b;
 }
-/* 3 non-focal stat cards + the 2 lower panels share the content tone */
+/* stat cards + panels in dark mode */
 :root[data-theme="dark"] .bibo-stat {
-  background: #171a25;
+  background: #131b2e;
+  border-color: #1e293b;
 }
 :root[data-theme="dark"] .bb-row2 .card {
-  background: #171a25;
+  background: #131b2e;
+  border-color: #1e293b;
 }
-/* visible elevation shadow on the stat cards + the two panels (the light-mode
-   shadow is invisible against the dark surfaces) */
+/* crisp elevation shadow in dark mode */
 :root[data-theme="dark"] .card,
 :root[data-theme="dark"] .bibo-stat {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .sidebar {
@@ -201,18 +229,18 @@ body {
   margin-bottom: var(--sp-4);
 }
 .brand-logo {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 7px;
   flex: none;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, #8170f2, #6c5ce7);
-  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
+  background: var(--brand-gradient);
+  box-shadow: 0 3px 8px var(--accent-glow);
 }
 .brand-logo svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
 .brand-text {
   display: flex;
@@ -220,15 +248,16 @@ body {
   line-height: 1.15;
 }
 .brand-name {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.01em;
 }
 .brand-accent {
   color: var(--accent);
 }
 .brand-version {
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 500;
   color: var(--text-muted);
   letter-spacing: 0.02em;
@@ -274,33 +303,34 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px var(--sp-3);
-  border-radius: 999px;
+  padding: 8px var(--sp-3);
+  border-radius: 8px;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .nav-ic {
   display: inline-flex;
   flex: none;
 }
 .nav-ic svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 .nav-item:hover {
   background: var(--bg-inset);
   color: var(--text);
 }
-/* active item: solid purple gradient pill with white text + icon (matches the mock) */
+/* active item: vivid royal blue pill with white text + icon */
 .nav-item.active,
 .nav-item.active:hover {
-  background: linear-gradient(135deg, #8170f2, #6c5ce7);
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 8px 18px rgba(108, 92, 231, 0.32);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .main {
@@ -318,10 +348,13 @@ body {
   justify-content: space-between;
   padding: var(--sp-2) var(--sp-5);
   border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 .header h1 {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
   margin: 0;
 }
 
@@ -366,14 +399,14 @@ body {
   background: var(--bg);
 }
 .bb-adminlogin__logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   margin: 0 auto 18px;
-  background: linear-gradient(150deg, #8170f2, #6c5ce7);
-  box-shadow: 0 10px 22px rgba(108, 92, 231, 0.35);
+  background: var(--brand-gradient);
+  box-shadow: 0 8px 20px var(--accent-glow);
 }
 .bb-adminlogin__logo svg {
   width: 24px;
@@ -410,17 +443,17 @@ body {
   height: 100%;
   min-height: 0;
   flex: 1 1 auto;
-  /* offline-admin mesh gradient page base; glass rail/topbar float on top */
+  /* subtle enterprise page base; rail/topbar float on top */
   background:
-    radial-gradient(1200px 800px at 12% -8%, #ece9fa, transparent 55%),
-    radial-gradient(1000px 700px at 100% 0%, #e7ecf8, transparent 50%),
-    linear-gradient(160deg, #eef0f8, #e4e8f3);
+    radial-gradient(1200px 800px at 12% -8%, #eff6ff, transparent 55%),
+    radial-gradient(1000px 700px at 100% 0%, #f1f5f9, transparent 50%),
+    linear-gradient(160deg, #f8fafc, #f1f5f9);
 }
 :root[data-theme="dark"] .bb-adshell {
   background:
-    radial-gradient(1200px 800px at 12% -8%, #1b1640, transparent 55%),
-    radial-gradient(1000px 700px at 100% 0%, #122033, transparent 50%),
-    linear-gradient(160deg, #11151e, #0b0e15);
+    radial-gradient(1200px 800px at 12% -8%, #0f172a, transparent 55%),
+    radial-gradient(1000px 700px at 100% 0%, #111827, transparent 50%),
+    linear-gradient(160deg, #0b0f19, #0f172a);
 }
 .bb-adshell__rail {
   flex: none;
@@ -431,24 +464,23 @@ body {
   gap: var(--sp-2);
   padding: var(--sp-3) 0;
   border-right: 1px solid var(--border);
-  /* --surface-glass-2 from the offline admin */
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 :root[data-theme="dark"] .bb-adshell__rail {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(15, 23, 42, 0.75);
 }
 .bb-adshell__logo {
   width: 34px;
   height: 34px;
-  border-radius: 11px;
+  border-radius: 9px;
   flex: none;
   display: grid;
   place-items: center;
   margin-bottom: var(--sp-2);
-  background: linear-gradient(150deg, #8170f2, #6c5ce7);
-  box-shadow: 0 6px 14px rgba(108, 92, 231, 0.32);
+  background: var(--brand-gradient);
+  box-shadow: 0 4px 10px var(--accent-glow);
 }
 .bb-adshell__logo svg {
   width: 19px;
@@ -465,7 +497,7 @@ body {
   height: 40px;
   border: none;
   background: none;
-  border-radius: 11px;
+  border-radius: 9px;
   color: var(--text-muted);
   cursor: pointer;
   display: grid;
@@ -481,9 +513,9 @@ body {
   color: var(--text);
 }
 .bb-adshell__navbtn.on {
-  background: linear-gradient(135deg, #8170f2, #6c5ce7);
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 8px 18px rgba(108, 92, 231, 0.32);
+  box-shadow: 0 3px 10px var(--accent-glow);
 }
 .bb-adshell__railacct,
 .bb-adshell__acct {
@@ -1060,7 +1092,8 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: var(--sp-4);
-  box-shadow: 0 1px 2px rgba(16, 18, 40, 0.04), 0 6px 18px rgba(16, 18, 40, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .grid {
@@ -1089,26 +1122,32 @@ body {
 .btn {
   font: inherit;
   font-size: var(--fz-sm);
+  font-weight: 600;
   border: 1px solid var(--border);
-  background: var(--bg-inset);
+  background: var(--bg-subtle);
   color: var(--text);
   padding: 6px var(--sp-3);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  transition: all 0.15s ease;
 }
 .btn:hover {
   border-color: var(--text-muted);
+  background: var(--bg-inset);
 }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px var(--accent-glow);
 }
 .btn-primary:hover {
-  filter: brightness(1.05);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: 0 3px 8px var(--accent-glow);
 }
 .btn-ghost {
   background: transparent;
@@ -1238,14 +1277,25 @@ body {
   border-bottom: 1px solid var(--border);
   z-index: 5;
 }
+.welcome-titlebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--brand-strip);
+  z-index: 100;
+}
 /* app name centered in the title bar (native title is hidden via hiddenTitle) */
 .welcome-titlebar-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
+  letter-spacing: -0.01em;
   pointer-events: none;
 }
 /* children stay interactive; only the empty strip drags */
@@ -1415,6 +1465,55 @@ body {
   flex: none;
 }
 
+/* Status pills for truthful connection and monitoring status */
+.bb-statuspill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  user-select: none;
+}
+.bb-statuspill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: #94a3b8;
+}
+.bb-statuspill__dot.is-green {
+  background: #10b981;
+}
+.bb-statuspill__dot.is-amber {
+  background: #f59e0b;
+}
+.bb-statuspill__dot.is-red {
+  background: #ef4444;
+}
+.bb-statuspill__dot.is-neutral {
+  background: #64748b;
+}
+
+/* Role badge in account box */
+.bb-role-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  margin-top: 3px;
+  align-self: flex-start;
+}
+
 /* hover tooltip bubble (used on the tracking pill) */
 .bibo-tip {
   position: relative;
@@ -1467,12 +1566,13 @@ body {
   min-height: 124px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 14px 16px;
-  box-shadow: 0 1px 2px rgba(16, 18, 40, 0.04), 0 6px 18px rgba(16, 18, 40, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   /* never let the value/footer (or its sparkline) spill outside the rounded card
      when the window is narrow — BRI-20 */
   overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .bibo-stat__top {
   display: flex;
@@ -1483,24 +1583,24 @@ body {
 .bibo-stat__icon {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   flex: none;
   display: grid;
   place-items: center;
-  background: #f4f2fe;
-  color: #5b4bd6;
+  background: var(--accent-weak);
+  color: var(--accent);
 }
-/* dark: keep the light lavender icon tile (#f4f2fe) with the deep-purple glyph */
+/* dark: subtle royal blue tinted tile with bright blue glyph */
 :root[data-theme="dark"] .bibo-stat__icon {
-  background: #f4f2fe;
-  color: #5b4bd6;
+  background: rgba(37, 99, 235, 0.16);
+  color: #60a5fa;
 }
 .bibo-stat__icon svg {
   width: 18px;
   height: 18px;
 }
 .bibo-stat__label {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-muted);
   /* wrap instead of overflowing when the card is narrow (long localized labels
@@ -1511,9 +1611,10 @@ body {
 }
 .bibo-stat__value {
   font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.15;
+  color: var(--text);
   /* wrap (e.g. "4h 30m" → 4h / 30m) but cap at 2 lines with an ellipsis so a long
      app name ("Google Chrome") can't grow the card into / over the footer — BRI-20 */
   display: -webkit-box;
@@ -1565,16 +1666,16 @@ body {
   display: inline-flex;
   align-items: flex-end;
 }
-/* focal (featured) card: dark fill, white text — same in light & dark */
+/* focal (featured) card: dark charcoal fill, white text */
 .bibo-stat.is-focal {
-  background: #16161f;
-  border-color: #16161f;
+  background: #0f172a;
+  border-color: #1e293b;
   color: #fff;
 }
-/* dark: the hero card is near-black with a faint visible outline so it stands out */
+/* dark: the hero card is deep navy with a subtle royal blue outline so it stands out */
 :root[data-theme="dark"] .bibo-stat.is-focal {
-  background: #0a0d11;
-  border-color: #8b7df652;
+  background: #0a0d14;
+  border-color: rgba(37, 99, 235, 0.35);
 }
 .bibo-stat.is-focal .bibo-stat__icon {
   background: rgba(255, 255, 255, 0.12);
@@ -2059,17 +2160,18 @@ td {
 .bibo-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(16, 18, 40, 0.08), 0 18px 44px rgba(16, 18, 40, 0.13);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
 }
 :root[data-theme="dark"] .bibo-card {
-  background: #171a25;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42), 0 26px 64px rgba(0, 0, 0, 0.52);
+  background: #131b2e;
+  border-color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 /* dark only: deeper icon tile + pure-white headings (light mode keeps dark text) */
 :root[data-theme="dark"] .bibo-card .bb-perm__ic {
-  background: #11151f;
-  color: #a6adbf;
+  background: #162032;
+  color: #94a3b8;
 }
 :root[data-theme="dark"] .bibo-card .bb-panel__title,
 :root[data-theme="dark"] .bibo-card .bb-perm__title {
@@ -2211,18 +2313,18 @@ td {
 .bibo-btn {
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   border: 1px solid var(--border);
-  background: var(--bg-inset);
+  background: var(--bg-subtle);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 8px 14px;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .bibo-btn svg {
   width: 14px;
@@ -2232,9 +2334,14 @@ td {
   padding: 6px 12px;
   font-size: 12px;
 }
+.bibo-btn--secondary {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+}
 .bibo-btn--secondary:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-color: #93c5fd;
   color: var(--accent);
+  background: var(--bg-inset);
 }
 .bibo-btn--ghost {
   background: transparent;
@@ -2254,20 +2361,24 @@ td {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px var(--accent-glow);
 }
 .bibo-btn--primary:hover {
-  filter: brightness(1.07);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
   color: #fff;
+  box-shadow: 0 3px 8px var(--accent-glow);
 }
 /* white button (Export actions): white fill, dark glyph/text; border keeps it
    visible on the white card in light mode */
 .bibo-btn--white {
   background: #fff;
-  color: #171a25;
+  color: #0f172a;
+  border-color: var(--border);
 }
 .bibo-btn--white:hover {
-  background: #eef0f4;
-  color: #171a25;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 /* ---------- gallery ---------- */
@@ -2370,21 +2481,21 @@ td {
 }
 /* Soft brand-tinted drop shadow on the "Capture now" button. */
 .bb-shots-bar .bibo-btn--primary {
-  box-shadow: 0 6px 16px rgba(108, 92, 231, 0.35);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 .bb-shots-bar .bibo-btn--primary:hover {
-  box-shadow: 0 8px 22px rgba(108, 92, 231, 0.45);
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 .bb-shots-bar .bibo-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
-/* Dark mode: brand-purple "Capture now" button. */
+/* Dark mode: royal-blue "Capture now" button. */
 :root[data-theme="dark"] .bb-shots-bar .bibo-btn--primary {
-  background: #6c5ce7;
-  border-color: #6c5ce7;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
-  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 .bibo-btn:disabled {
   opacity: 0.6;
@@ -3177,23 +3288,19 @@ td {
    Scoped under .welcome so it doesn't touch other screens. Themes via tokens.
    ========================================================================= */
 .welcome {
-  --brand: #6c5ce7;
+  --brand: #2563eb;
   gap: 0;
-  /* Force a clean WHITE surface so the welcome always stays light, even when the
-     OS / app theme is dark. Keeps the purple brand + the near-black focal
-     "Just me" card (those are hard-coded below). */
+  /* Clean white surface for welcome & onboarding */
   --bg: #ffffff;
-  --bg-subtle: #f6f6f6;
-  --bg-inset: #ffffff;
-  --border: #e3e3e3;
-  --text: #1a1a1a;
-  --text-muted: #6b6b6b;
+  --bg-subtle: #f8fafc;
+  --bg-inset: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
   --surface: #ffffff;
   --surface-strong: #ffffff;
-  /* keep brand tint light too, so the language menu's active option doesn't pick
-     up the dark-theme --accent-weak on this forced-white surface (BRI-16) */
-  --accent: #6c5ce7;
-  --accent-weak: #ece9fd;
+  --accent: #2563eb;
+  --accent-weak: #eff6ff;
   color: var(--text);
   background: #ffffff;
 }
@@ -3201,19 +3308,19 @@ td {
    tracker's own welcome, must follow the app theme — restore the dark tokens +
    surface when the app is in dark mode (inputs use an inset tone to contrast). */
 :root[data-theme="dark"] .bb-adminlogin.welcome {
-  --brand: #8b7cf0;
-  --bg: #0c0f16;
-  --bg-subtle: #191b24;
-  --bg-inset: #11151e;
-  --border: #252833;
-  --text: #e8e8f0;
-  --text-muted: #9696a6;
-  --surface: #14161f;
-  --surface-strong: #1c222d; /* inputs — clearly lifted off the dark page */
-  --accent: #8b7cf0;
-  --accent-weak: #2a2540;
+  --brand: #3b82f6;
+  --bg: #0b0f19;
+  --bg-subtle: #1e293b;
+  --bg-inset: #162032;
+  --border: #1e293b;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --surface: #131b2e;
+  --surface-strong: #1e293b; /* inputs — clearly lifted off the dark page */
+  --accent: #3b82f6;
+  --accent-weak: rgba(59, 130, 246, 0.16);
   color: var(--text);
-  background: #0c0f16;
+  background: #0b0f19;
 }
 /* Borderless, floating sign-in like the tracker's own Login — the form sits on the
    page (no card box). Light = plain white. */
@@ -3225,15 +3332,15 @@ td {
   color: var(--text-muted);
 }
 
-/* purple gradient app-icon tile + white pulse line */
+/* royal blue to purple gradient app-icon tile + white pulse line */
 .welcome .brand-mark {
   width: 56px;
   height: 56px;
-  border-radius: 16px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, #8170f2, var(--brand));
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--brand) 42%, transparent);
+  background: var(--brand-gradient);
+  box-shadow: 0 8px 20px var(--accent-glow);
   margin-bottom: var(--sp-4);
 }
 .welcome .brand-mark svg {
@@ -3253,13 +3360,15 @@ td {
   text-align: center;
 }
 .welcome .login-title {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--text);
   margin: 0 0 var(--sp-2);
 }
 .welcome .login-sub {
-  font-size: 15px;
+  font-size: 14.5px;
+  color: var(--text-muted);
   margin: 0 0 var(--sp-5);
 }
 
@@ -3276,32 +3385,32 @@ td {
   gap: var(--sp-3);
   min-height: 210px;
   padding: var(--sp-5);
-  border-radius: 18px;
+  border-radius: var(--radius);
   background: var(--surface-strong, var(--bg));
   border: 1px solid var(--border);
-  box-shadow: 0 8px 24px rgba(20, 20, 45, 0.06);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .welcome .persona-card:hover {
-  border-color: color-mix(in srgb, var(--brand) 55%, var(--border));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--brand) 18%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px var(--accent-glow);
   transform: translateY(-2px);
 }
 /* focal "Just me" card — near-black in both themes */
 .welcome .persona-card.focal {
-  background: #14161c;
-  border-color: #14161c;
+  background: #0f172a;
+  border-color: #0f172a;
   color: #fff;
 }
 
 .welcome .persona-card .p-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--brand) 14%, transparent);
-  color: var(--brand);
+  background: var(--accent-weak);
+  color: var(--accent);
 }
 .welcome .persona-card .p-icon svg {
   width: 22px;
@@ -3553,18 +3662,18 @@ td {
   align-items: center;
   gap: 9px;
   height: 42px;
-  padding: 0 16px;
+  padding: 0 14px;
   background: var(--surface-strong, var(--bg));
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 8px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .welcome .auth-input:hover {
-  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+  border-color: #93c5fd;
 }
 .welcome .auth-input:focus-within {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 28%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 .welcome .auth-input-ic {
   display: flex;
@@ -3594,9 +3703,9 @@ td {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 11px;
-  background: color-mix(in srgb, #f43f5e 14%, transparent);
-  color: #f43f5e;
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+  color: #ef4444;
   font-size: 12.5px;
   font-weight: 700;
 }
@@ -3633,19 +3742,19 @@ td {
   font-size: 14px;
   font-weight: 700;
   color: #fff;
-  background: var(--brand);
+  background: var(--accent);
   border: 1px solid transparent;
-  border-radius: 999px;
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 32%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px var(--accent-glow);
   cursor: pointer;
-  transition: filter 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 .welcome .auth-btn:hover:not([disabled]) {
-  filter: brightness(1.06);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--brand) 40%, transparent);
+  background: var(--accent-hover);
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 .welcome .auth-btn:active:not([disabled]) {
-  transform: translateY(1px) scale(0.985);
+  transform: translateY(1px);
 }
 .welcome .auth-btn[disabled] {
   opacity: 0.5;
@@ -3703,7 +3812,7 @@ td {
   color: var(--text);
 }
 
-/* ---- consent ("What BiBoTracking captures"): 2×2 capture cards + focal note ---- */
+/* ---- consent ("What Finjulia captures"): 2×2 capture cards + focal note ---- */
 .welcome .capture-grid {
   width: 100%;
   max-width: 560px;
@@ -3718,14 +3827,15 @@ td {
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--surface-strong, var(--bg));
-  border: 1px solid #14161b12;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 .welcome .capture-ic {
   width: 38px;
   height: 38px;
-  border-radius: 11px;
+  border-radius: var(--radius-sm);
   flex: none;
   display: grid;
   place-items: center;
@@ -3752,20 +3862,20 @@ td {
   line-height: 1.45;
 }
 .welcome .cc-purple {
-  --tone: #6c5ce7;
-  --tone-soft: #ece9fe;
+  --tone: #2563eb;
+  --tone-soft: #eff6ff;
 }
 .welcome .cc-blue {
-  --tone: #3b82f6;
-  --tone-soft: #deeafe;
+  --tone: #0284c7;
+  --tone-soft: #f0f9ff;
 }
 .welcome .cc-green {
   --tone: #10b981;
-  --tone-soft: #d9f7ec;
+  --tone-soft: #ecfdf5;
 }
 .welcome .cc-amber {
   --tone: #f59e0b;
-  --tone-soft: #fef0d6;
+  --tone-soft: #fffbeb;
 }
 /* onboarding step heading: smaller than the welcome hero (design uses 25px) */
 .welcome.onboarding-screen .login-title {
@@ -3779,7 +3889,7 @@ td {
   padding-top: 120px;
 }
 
-/* focal black "WHO SEES THIS?" note */
+/* focal charcoal "WHO SEES THIS?" note */
 .welcome .capture-who {
   width: 100%;
   max-width: 560px;
@@ -3788,10 +3898,10 @@ td {
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   text-align: left;
-  background: #14161c;
-  border: 1px solid #14161c;
+  background: #0f172a;
+  border: 1px solid #0f172a;
   color: #fff;
 }
 .welcome .capture-who svg {

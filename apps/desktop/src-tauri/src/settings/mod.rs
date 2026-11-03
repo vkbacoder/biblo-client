@@ -60,6 +60,10 @@ pub struct Settings {
     /// (tray, notifications) can localize to match the in-app choice. Default "en".
     #[serde(default = "default_locale")]
     pub locale: String,
+    /// Client restricted view mode: hides screenshots and exact capture timestamps
+    /// from client-facing screens and local APIs. Default off.
+    #[serde(default)]
+    pub client_mode: bool,
 }
 
 fn default_true() -> bool {
@@ -88,7 +92,7 @@ const DEFAULT_BACKEND_URL: &str = if cfg!(feature = "local") {
     "https://staging.example.com"
 } else {
     // production (default)
-    "https://bibotracker.com"
+    "https://bibo-emplooyee-tracking.onrender.com"
 };
 
 /// Compile-time environment label (matches the backend-URL feature resolution).
@@ -130,6 +134,7 @@ impl Default for Settings {
             onboarding_completed: false,
             device_id: String::new(),
             locale: default_locale(),
+            client_mode: false,
         }
     }
 }
@@ -164,14 +169,17 @@ pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
 pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
     use std::sync::atomic::Ordering::Relaxed;
     control.idle_threshold_s.store(s.idle_threshold_s, Relaxed);
-    control.screenshot_interval_s.store(s.screenshot_interval_s, Relaxed);
+    control
+        .screenshot_interval_s
+        .store(s.screenshot_interval_s, Relaxed);
     control
         .screenshot_retention_days
         .store(s.screenshot_retention_days, Relaxed);
     control.domain_only.store(s.domain_only, Relaxed);
-    control
-        .screenshot_mode
-        .store(crate::trackers::shot_mode_from_str(&s.screenshot_mode), Relaxed);
+    control.screenshot_mode.store(
+        crate::trackers::shot_mode_from_str(&s.screenshot_mode),
+        Relaxed,
+    );
     *control.screenshot_skip_apps.write().unwrap() = s.screenshot_skip_apps.clone();
 
     // Capture opt-outs. On Windows nothing captures until the user has consented
@@ -260,8 +268,12 @@ mod tests {
         std::env::remove_var("CTRACKING_BACKEND_URL");
         assert_eq!(backend_base_url(), DEFAULT_BACKEND_URL);
         // Sanity: the default build targets production.
-        if cfg!(all(feature = "production", not(feature = "local"), not(feature = "staging"))) {
-            assert_eq!(backend_base_url(), "https://bibotracker.com");
+        if cfg!(all(
+            feature = "production",
+            not(feature = "local"),
+            not(feature = "staging")
+        )) {
+            assert_eq!(backend_base_url(), DEFAULT_BACKEND_URL);
         }
     }
 }

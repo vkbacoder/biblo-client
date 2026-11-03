@@ -1,6 +1,6 @@
 {
   "title": "Izin",
-  "intro": "BiBoTracking menggunakan kemampuan di bawah ini. Status diperbarui secara otomatis.",
+  "intro": "Finjulia menggunakan kemampuan di bawah ini. Status diperbarui secara otomatis.",
   "granted": "Diberikan",
   "quitReopen": "Keluar & Buka Lagi",
   "request": "Minta Izin",
@@ -11,7 +11,7 @@
   "restartNote": "Beberapa izin memerlukan keluar & membuka aplikasi kembali agar berlaku.",
   "startupNotice": {
     "title": "Izin diperlukan",
-    "body": "BiBoTracking dimulai tanpa beberapa izin yang diperlukan — aplikasi tidak pernah memintanya secara otomatis. Berikan izin di bawah untuk mengaktifkan pelacakan penuh.",
+    "body": "Finjulia dimulai tanpa beberapa izin yang diperlukan — aplikasi tidak pernah memintanya secara otomatis. Berikan izin di bawah untuk mengaktifkan pelacakan penuh.",
     "open": "Buka halaman Izin",
     "dismiss": "Tutup"
   },

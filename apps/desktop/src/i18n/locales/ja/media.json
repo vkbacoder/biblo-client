@@ -21,7 +21,7 @@
     "colDuration": "利用時間",
     "colBrowser": "ブラウザ",
     "title": "ウェブページを記録する",
-    "subtitle": "BiBoTracking 拡張機能をインストールすると、訪問したページをここで確認できます。",
+    "subtitle": "Finjulia 拡張機能をインストールすると、訪問したページをここで確認できます。",
     "gifPlaceholder": "[ GIF：Chrome 拡張機能のインストール ]",
     "step1": "Google Chrome を開きます",
     "step2Prefix": "Chrome ウェブストアにアクセスします — ",
@@ -39,7 +39,7 @@
     "colWhen": "時刻"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "Finjulia",
     "stepOf": "ステップ {{current}}／{{total}}"
   }
 }

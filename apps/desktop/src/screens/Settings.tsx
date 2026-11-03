@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { call as invoke } from "../api";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getVersion } from "@tauri-apps/api/app";
 import { useTranslation } from "react-i18next";
 import i18n, { LOCALES } from "../i18n";
-import { checkForUpdates } from "../updater";
-
 import enSettings from "../i18n/locales/en/settings.json";
 import zhSettings from "../i18n/locales/zh/settings.json";
 import jaSettings from "../i18n/locales/ja/settings.json";
@@ -44,6 +41,7 @@ export type AppSettings = {
   consented: boolean;
   local_only: boolean;
   onboarding_completed: boolean;
+  client_mode?: boolean;
 };
 
 const IS_WINDOWS = navigator.userAgent.includes("Windows");
@@ -117,15 +115,7 @@ type FileResult = { name: string; rows: number };
 type ExportSummary = { dir: string; files: FileResult[] };
 type BrowserLinkInfo = { port: number | null; token_active: boolean };
 
-/* ---------- icons (lucide, inline to match the offline design) ---------- */
-const RefreshIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-    <path d="M21 3v5h-5" />
-    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-    <path d="M8 16H3v5" />
-  </svg>
-);
+
 const ArrowRightIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
@@ -309,38 +299,15 @@ export function Settings({
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [link, setLink] = useState<BrowserLinkInfo | null>(null);
-  const [updMsg, setUpdMsg] = useState<string>("");
-  const [updBusy, setUpdBusy] = useState(false);
-  const [version, setVersion] = useState<string>("");
   const [skipAppInput, setSkipAppInput] = useState("");
   const [skipOpen, setSkipOpen] = useState(false);
   const [privacyApps, setPrivacyApps] = useState<PrivacyAppCategory[]>([]);
 
   useEffect(() => {
     invoke<BrowserLinkInfo>("browser_link").then(setLink).catch(() => {});
-    getVersion().then(setVersion).catch(() => {});
     invoke<PrivacyAppCategory[]>("privacy_apps").then(setPrivacyApps).catch(() => {});
   }, []);
 
-  // Manual update check (auto-check also runs once on launch). Progress strings are
-  // transient status and kept in English here (localize via settings later if needed).
-  async function runUpdateCheck() {
-    setUpdBusy(true);
-    setUpdMsg("");
-    await checkForUpdates((p) => {
-      switch (p.state) {
-        case "checking": setUpdMsg("Checking for updates…"); break;
-        case "uptodate": setUpdMsg("You're on the latest version."); break;
-        case "available": setUpdMsg(`Update ${p.version} found — downloading…`); break;
-        case "downloading": setUpdMsg(`Downloading… ${p.pct}%`); break;
-        case "ready": setUpdMsg(`Update ${p.version} ready — restart to apply.`); break;
-        case "error": setUpdMsg(`Update failed: ${p.message}`); break;
-      }
-    });
-    // We no longer auto-relaunch — the user is prompted to restart, so re-enable the
-    // button whether they restarted, postponed, or were already up to date.
-    setUpdBusy(false);
-  }
 
   // Capture settings are locked when the org manages them and hasn't allowed overrides.
   const captureLocked =
@@ -448,29 +415,6 @@ export function Settings({
         </Row>
       </Section>
 
-      <Section title={t("updates")}>
-        <Row title={t("version")}>
-          <span className="bb-readonly">{version ? `v${version}` : "…"}</span>
-        </Row>
-        <Row title={t("checkForUpdates")}>
-          <button
-            className="bibo-btn bibo-btn--secondary bibo-btn--sm"
-            onClick={runUpdateCheck}
-            disabled={updBusy}
-          >
-            <span className="bb-upd-ic" style={{ display: "inline-flex", lineHeight: 0 }}>
-              <RefreshIcon />
-            </span>
-            <span>{updBusy ? "Checking…" : t("checkForUpdates")}</span>
-          </button>
-        </Row>
-        {updMsg && (
-          <div className="muted" style={{ fontSize: 12, padding: "10px 2px 0" }}>
-            {updMsg}
-          </div>
-        )}
-      </Section>
-
       {captureLocked ? (
         // Org-managed and no override allowed: the capture settings are not
         // rendered at all — just the notice.
@@ -521,19 +465,25 @@ export function Settings({
                     </div>
                   </Row>
                 )}
-                <Row title={t("screenshotInterval")}>
-                  <Select
-                    width={140}
-                    value={settings.screenshot_interval_s}
-                    onChange={(v) => onChange({ screenshot_interval_s: v })}
-                    options={[
-                      { label: t("minUnit", { count: 1 }), value: 60 },
-                      { label: t("minUnit", { count: 5 }), value: 300 },
-                      { label: t("minUnit", { count: 10 }), value: 600 },
-                      { label: t("minUnit", { count: 15 }), value: 900 },
-                    ]}
-                  />
-                </Row>
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    background: "var(--surface-muted, rgba(255, 255, 255, 0.03))",
+                    border: "1px dashed var(--border)",
+                    fontSize: 12,
+                    color: "var(--text-sub)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>🔒</span>
+                  <span>
+                    Screenshot capture is governed by organizational server policy.
+                  </span>
+                </div>
                 <Row title={t("screenshotRetention")}>
                   <Select
                     width={140}

@@ -86,25 +86,86 @@ pub fn shot_mode_from_str(s: &str) -> u8 {
 /// (single source of truth: `handlers/privacyapps.go` — keep in sync). In
 /// privacy mode a capture tick is skipped while any of these is frontmost.
 pub const DEFAULT_PRIVACY_APPS: &[(&str, &[&str])] = &[
-    ("Chat", &[
-        "Zalo", "WhatsApp", "Telegram", "Signal", "Viber", "WeChat", "Weixin",
-        "QQ", "LINE", "KakaoTalk", "Discord", "Messages", "FaceTime", "Element",
-        "Threema", "Wire", "Beeper", "Ferdium", "Rambox", "Caprine",
-    ]),
-    ("Security", &[
-        "1Password", "Bitwarden", "LastPass", "KeePass", "KeePassXC", "Keeper",
-        "NordPass", "Proton Pass", "Enpass", "RoboForm", "Keychain Access",
-        "Passwords", "Ledger Live", "Trezor Suite", "Exodus", "Electrum",
-        "Sparrow", "Proton VPN", "NordVPN", "TeamViewer", "AnyDesk",
-    ]),
-    ("Work", &[
-        "Slack", "Microsoft Teams", "Zoom", "zoom.us", "Webex", "DingTalk",
-        "Lark", "Feishu", "Mattermost", "Rocket.Chat",
-    ]),
-    ("Mail", &[
-        "Mail", "Outlook", "Thunderbird", "Spark", "Proton Mail", "eM Client",
-        "Mailbird", "Superhuman", "Airmail",
-    ]),
+    (
+        "Chat",
+        &[
+            "Zalo",
+            "WhatsApp",
+            "Telegram",
+            "Signal",
+            "Viber",
+            "WeChat",
+            "Weixin",
+            "QQ",
+            "LINE",
+            "KakaoTalk",
+            "Discord",
+            "Messages",
+            "FaceTime",
+            "Element",
+            "Threema",
+            "Wire",
+            "Beeper",
+            "Ferdium",
+            "Rambox",
+            "Caprine",
+        ],
+    ),
+    (
+        "Security",
+        &[
+            "1Password",
+            "Bitwarden",
+            "LastPass",
+            "KeePass",
+            "KeePassXC",
+            "Keeper",
+            "NordPass",
+            "Proton Pass",
+            "Enpass",
+            "RoboForm",
+            "Keychain Access",
+            "Passwords",
+            "Ledger Live",
+            "Trezor Suite",
+            "Exodus",
+            "Electrum",
+            "Sparrow",
+            "Proton VPN",
+            "NordVPN",
+            "TeamViewer",
+            "AnyDesk",
+        ],
+    ),
+    (
+        "Work",
+        &[
+            "Slack",
+            "Microsoft Teams",
+            "Zoom",
+            "zoom.us",
+            "Webex",
+            "DingTalk",
+            "Lark",
+            "Feishu",
+            "Mattermost",
+            "Rocket.Chat",
+        ],
+    ),
+    (
+        "Mail",
+        &[
+            "Mail",
+            "Outlook",
+            "Thunderbird",
+            "Spark",
+            "Proton Mail",
+            "eM Client",
+            "Mailbird",
+            "Superhuman",
+            "Airmail",
+        ],
+    ),
 ];
 
 /// The baked-in list flattened for the matcher.
@@ -323,7 +384,10 @@ fn compress_to_webp(img: &xcap::image::RgbaImage) -> (Vec<u8>, u32, u32) {
             if bytes.len() <= SCREENSHOT_MAX_BYTES {
                 return (bytes, w, h);
             }
-            if smallest.as_ref().map_or(true, |(b, ..)| bytes.len() < b.len()) {
+            if smallest
+                .as_ref()
+                .map_or(true, |(b, ..)| bytes.len() < b.len())
+            {
                 smallest = Some((bytes, w, h));
             }
         }
@@ -336,7 +400,7 @@ fn compress_to_webp(img: &xcap::image::RgbaImage) -> (Vec<u8>, u32, u32) {
 /// and the entry only has to appear as a whole word in the reported app name —
 /// "Zalo" matches "zalo", "Zalo PC", and "zalo - the best app", while "LINE"
 /// does not match "Outline".
-fn should_skip(app_name: &str, skip_apps: &[String]) -> bool {
+pub(crate) fn should_skip(app_name: &str, skip_apps: &[String]) -> bool {
     let name = app_name.to_lowercase();
     skip_apps.iter().any(|s| {
         let pat = s.trim().to_lowercase();
@@ -353,7 +417,8 @@ fn contains_word(name: &str, pat: &str) -> bool {
         let e = b + pat.len();
         let before = name[..b].chars().next_back();
         let after = name[e..].chars().next();
-        if before.is_none_or(|c| !c.is_alphanumeric()) && after.is_none_or(|c| !c.is_alphanumeric()) {
+        if before.is_none_or(|c| !c.is_alphanumeric()) && after.is_none_or(|c| !c.is_alphanumeric())
+        {
             return true;
         }
         from = b + name[b..].chars().next().map_or(1, |c| c.len_utf8());
@@ -367,7 +432,14 @@ fn contains_word(name: &str, pat: &str) -> bool {
 /// can have several windows (e.g. two Chrome windows) and size says nothing
 /// about which is in front. Returns `None` on any lookup/capture miss so the
 /// caller falls back to a full-screen shot.
-fn capture_active_window(db: &Db, dir: &Path, active: &ActiveWindowInfo, now: i64) -> Option<usize> {
+fn capture_active_window(
+    db: &Db,
+    dir: &Path,
+    active: &ActiveWindowInfo,
+    now: i64,
+    request_id: Option<&str>,
+    capture_source: &str,
+) -> Option<String> {
     let windows = xcap::Window::all().ok()?;
     let title = active.title.as_deref().unwrap_or("");
     let win = windows
@@ -394,22 +466,25 @@ fn capture_active_window(db: &Db, dir: &Path, active: &ActiveWindowInfo, now: i6
         width: Some(w as i64),
         height: Some(h as i64),
     };
-    if let Err(e) = db.insert_screenshot(&shot) {
+    let uuid = uuid::Uuid::new_v4().to_string();
+    if let Err(e) = db.insert_screenshot_full(&shot, &uuid, request_id, capture_source) {
         crate::log_warn!("screenshot", "db insert failed: {e}");
         return None;
     }
-    Some(1)
+    Some(uuid)
 }
 
-/// Take one capture tick: skip entirely when the frontmost app is on the
-/// skip-list; otherwise capture per the configured mode (active-window shots
-/// fall back to full screen on a miss), compress to ≤50 KB WebP under `dir`,
-/// and record each shot in the DB. Returns how many shots were saved.
-/// Requires Screen Recording.
-pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
+/// Take one capture tick with metadata (request_id and capture_source) and return client_uuids.
+pub fn capture_once_uuids_with_meta(
+    db: &Db,
+    dir: &Path,
+    control: &TrackerControl,
+    request_id: Option<&str>,
+    capture_source: &str,
+) -> Vec<String> {
     if let Err(e) = std::fs::create_dir_all(dir) {
         crate::log_warn!("screenshot", "create dir failed: {e}");
-        return 0;
+        return Vec::new();
     }
 
     let mode = control.screenshot_mode.load(Ordering::Relaxed);
@@ -419,34 +494,41 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
         if let Some(ref win) = active {
             let skip = control.screenshot_skip_apps.read().unwrap();
             if should_skip(&win.app_name, &skip) {
-                crate::log_info!("screenshot", "skipped tick: {} is on the skip-list", win.app_name);
-                return 0;
+                crate::log_info!(
+                    "screenshot",
+                    "skipped tick: {} is on the skip-list",
+                    win.app_name
+                );
+                return Vec::new();
             }
         }
     }
 
     let now = now_ts();
     if mode == SHOT_MODE_PRIVACY {
-        if let Some(saved) = active
+        if let Some(uuid) = active
             .as_ref()
-            .and_then(|win| capture_active_window(db, dir, win, now))
+            .and_then(|win| capture_active_window(db, dir, win, now, request_id, capture_source))
         {
-            return saved;
+            return vec![uuid];
         }
         // Frontmost window not capturable (desktop focus, transient surface,
         // window gone) — never silently drop the tick: full-screen fallback.
-        crate::log_info!("screenshot", "active-window capture missed; falling back to full screen");
+        crate::log_info!(
+            "screenshot",
+            "active-window capture missed; falling back to full screen"
+        );
     }
 
     let monitors = match xcap::Monitor::all() {
         Ok(m) => m,
         Err(e) => {
             crate::log_warn!("screenshot", "enumerate monitors failed: {e}");
-            return 0;
+            return Vec::new();
         }
     };
 
-    let mut saved = 0;
+    let mut saved_uuids = Vec::new();
     for (i, monitor) in monitors.into_iter().enumerate() {
         let img = match monitor.capture_image() {
             Ok(img) => img,
@@ -470,20 +552,38 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
             width: Some(w as i64),
             height: Some(h as i64),
         };
-        if let Err(e) = db.insert_screenshot(&shot) {
+        let uuid = uuid::Uuid::new_v4().to_string();
+        if let Err(e) = db.insert_screenshot_full(&shot, &uuid, request_id, capture_source) {
             crate::log_warn!("screenshot", "db insert failed: {e}");
             continue;
         }
-        saved += 1;
+        saved_uuids.push(uuid);
     }
-    saved
+    saved_uuids
+}
+
+/// Take one automatic capture tick and return the client_uuids of the saved screenshots.
+pub fn capture_once_uuids(db: &Db, dir: &Path, control: &TrackerControl) -> Vec<String> {
+    capture_once_uuids_with_meta(db, dir, control, None, "automatic")
+}
+
+/// Take one capture tick: skip entirely when the frontmost app is on the
+/// skip-list; otherwise capture per the configured mode (active-window shots
+/// fall back to full screen on a miss), compress to ≤50 KB WebP under `dir`,
+/// and record each shot in the DB. Returns how many shots were saved.
+/// Requires Screen Recording.
+pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
+    capture_once_uuids(db, dir, control).len()
 }
 
 /// Spawn the screenshot retention job (task 29): periodically delete screenshots
 /// older than the configured age cap, removing both files and DB rows.
 pub fn start_cleanup(db: Arc<Db>, control: Arc<TrackerControl>) {
     thread::spawn(move || loop {
-        let days = control.screenshot_retention_days.load(Ordering::Relaxed).max(1);
+        let days = control
+            .screenshot_retention_days
+            .load(Ordering::Relaxed)
+            .max(1);
         let cutoff = now_ts() - (days as i64) * 86_400;
         match db.delete_screenshots_before(cutoff) {
             Ok(paths) => {
@@ -567,7 +667,9 @@ mod tests {
         xcap::image::RgbaImage::from_fn(w, h, |x, y| {
             let noisy = y < h / 4; // top quarter is high-frequency noise
             let n = if noisy {
-                ((x.wrapping_mul(2654435761).wrapping_add(y.wrapping_mul(40503))) & 0xFF) as u8
+                ((x.wrapping_mul(2654435761)
+                    .wrapping_add(y.wrapping_mul(40503)))
+                    & 0xFF) as u8
             } else {
                 0
             };
@@ -601,7 +703,8 @@ mod tests {
     #[test]
     fn small_screen_not_upscaled() {
         // A source already under the smallest candidate keeps its dimensions.
-        let img = xcap::image::RgbaImage::from_pixel(800, 600, xcap::image::Rgba([20, 60, 90, 255]));
+        let img =
+            xcap::image::RgbaImage::from_pixel(800, 600, xcap::image::Rgba([20, 60, 90, 255]));
         let (bytes, w, h) = compress_to_webp(&img);
         assert!(bytes.len() <= SCREENSHOT_MAX_BYTES);
         assert_eq!((w, h), (800, 600));
@@ -609,7 +712,11 @@ mod tests {
 
     #[test]
     fn skip_list_matches_whole_words_case_insensitively() {
-        let list = vec!["Zalo".to_string(), "keychain access".to_string(), "LINE".to_string()];
+        let list = vec![
+            "Zalo".to_string(),
+            "keychain access".to_string(),
+            "LINE".to_string(),
+        ];
         assert!(should_skip("Zalo", &list));
         assert!(should_skip("zalo", &list));
         assert!(should_skip("ZALO", &list));
@@ -673,7 +780,9 @@ mod tests {
         let threshold = 5;
         // 8 active ticks on one window.
         for i in 0..8 {
-            assert!(t.tick(true, Some(win("Code", "a")), threshold, 100 + i).is_none());
+            assert!(t
+                .tick(true, Some(win("Code", "a")), threshold, 100 + i)
+                .is_none());
         }
         // Go idle → trim `threshold` seconds of grace from the 8 counted.
         let flushed = t.tick(false, None, threshold, 108).unwrap();

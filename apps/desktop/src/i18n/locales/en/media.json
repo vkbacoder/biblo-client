@@ -10,7 +10,23 @@
     "captureFailed": "Capture failed: {{error}}",
     "empty": "No screenshots yet today. Grant Screen Recording on the Permissions tab, then click “Capture now”.",
     "shotTitle": "{{time}} · display {{display}}",
-    "shotAlt": "screenshot {{time}}"
+    "shotAlt": "screenshot {{time}}",
+    "clientModeBadge": "Client View (Restricted)",
+    "internalModeBadge": "Internal Monitoring View",
+    "clientIntro": "Aggregated proof-of-work metrics. Individual images and exact timestamps are restricted.",
+    "clientNoticeTitle": "Restricted Screenshot Visibility",
+    "clientNoticeDesc": "Screenshot image previews and exact capture timestamps are strictly restricted to authorized internal monitoring roles. For client-facing reporting, aggregated hourly activity totals are summarized below without revealing individual capture times.",
+    "totalCapturesToday": "Total Screenshots Recorded Today",
+    "capturesSub": "Automatic background monitoring captures",
+    "activeHours": "Active Monitoring Windows",
+    "activeHoursSub": "1-hour blocks with verified activity",
+    "reportingScope": "Reporting Period",
+    "todayScope": "Today (00:00 – Present)",
+    "scopeSub": "Aggregated proof-of-activity distribution",
+    "hourlyDistribution": "Hourly Activity Distribution",
+    "hourlyDistributionDesc": "Aggregated frequency of recorded activity by hour. Individual capture timestamps and images are withheld.",
+    "noHourlyActivity": "No capture activity recorded yet today.",
+    "singleCapture": "1 capture"
   },
   "browser": {
     "visitedTitle": "Places visited today",
@@ -21,7 +37,7 @@
     "colDuration": "Duration",
     "colBrowser": "Browser",
     "title": "Track web pages",
-    "subtitle": "Install the BiBoTracking extension to see the pages you visit here.",
+    "subtitle": "Install the Finjulia extension to see the pages you visit here.",
     "gifPlaceholder": "[ GIF: installing the Chrome extension ]",
     "step1": "Open Google Chrome",
     "step2Prefix": "Go to the Chrome Web Store — ",
@@ -39,7 +55,7 @@
     "colWhen": "When"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "Finjulia",
     "stepOf": "Step {{current}} of {{total}}"
   }
 }

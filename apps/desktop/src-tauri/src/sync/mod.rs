@@ -11,9 +11,11 @@
 
 pub mod auth;
 pub mod client;
+pub mod screenshot_policy;
 pub mod worker;
 
 pub use auth::AuthState;
+pub use screenshot_policy::ScreenshotPolicyAdapter;
 
 /// How many rows we pull per table per sync pass (docs/11 suggests ~500).
 pub const BATCH_LIMIT: i64 = 500;

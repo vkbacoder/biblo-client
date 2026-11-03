@@ -1,6 +1,6 @@
 {
   "title": "Permisos",
-  "intro": "BiBoTracking utiliza las funciones que se indican a continuación. El estado se actualiza automáticamente.",
+  "intro": "Finjulia utiliza las funciones que se indican a continuación. El estado se actualiza automáticamente.",
   "granted": "Concedido",
   "quitReopen": "Salir y volver a abrir",
   "request": "Solicitar",
@@ -11,7 +11,7 @@
   "restartNote": "Algunos permisos requieren salir y volver a abrir la aplicación para aplicarse.",
   "startupNotice": {
     "title": "Se necesitan permisos",
-    "body": "BiBoTracking se inició sin algunos permisos necesarios; la aplicación nunca los solicita automáticamente. Concédelos abajo para activar el seguimiento completo.",
+    "body": "Finjulia se inició sin algunos permisos necesarios; la aplicación nunca los solicita automáticamente. Concédelos abajo para activar el seguimiento completo.",
     "open": "Abrir Permisos",
     "dismiss": "Cerrar"
   },

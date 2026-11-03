@@ -1,6 +1,6 @@
 {
   "title": "Autorisations",
-  "intro": "BiBoTracking utilise les fonctionnalités ci-dessous. Le statut se met à jour automatiquement.",
+  "intro": "Finjulia utilise les fonctionnalités ci-dessous. Le statut se met à jour automatiquement.",
   "granted": "Accordé",
   "quitReopen": "Quitter et rouvrir",
   "request": "Demander",
@@ -11,7 +11,7 @@
   "restartNote": "Certaines autorisations nécessitent de quitter et de rouvrir l’application pour prendre effet.",
   "startupNotice": {
     "title": "Autorisations requises",
-    "body": "BiBoTracking a démarré sans certaines autorisations requises — l’application ne les demande jamais automatiquement. Accordez-les ci-dessous pour activer le suivi complet.",
+    "body": "Finjulia a démarré sans certaines autorisations requises — l’application ne les demande jamais automatiquement. Accordez-les ci-dessous pour activer le suivi complet.",
     "open": "Ouvrir les autorisations",
     "dismiss": "Fermer"
   },

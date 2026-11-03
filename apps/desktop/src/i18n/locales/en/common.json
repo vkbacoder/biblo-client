@@ -1,11 +1,10 @@
 {
-  "appName": "BiBoTracking",
+  "appName": "Finjulia",
   "language": "Language",
   "loading": "Loading…",
   "nav": {
     "Dashboard": "Dashboard",
     "Activity": "Activity",
-    "Screenshots": "Screenshots",
     "Browser": "Browser",
     "Permissions": "Permissions",
     "Settings": "Settings",
@@ -16,6 +15,17 @@
       "me": "Personal",
       "admin": "Admin"
     }
+  },
+  "connection": {
+    "connected": "Connected",
+    "syncIssue": "Sync issue",
+    "localMode": "Local mode",
+    "offline": "Offline"
+  },
+  "monitoring": {
+    "active": "Screenshots: On",
+    "suspended": "Screenshots: Suspended",
+    "off": "Screenshots: Off"
   },
   "status": {
     "tracking": "Tracking",

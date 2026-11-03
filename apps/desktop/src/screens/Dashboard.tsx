@@ -308,7 +308,7 @@ export function Dashboard() {
           }
           deltaDir="none"
           sub={topPct != null ? `${topPct}%` : undefined}
-          chart={<Sparkline values={spark} color="#8b7cf0" />}
+          chart={<Sparkline values={spark} color="#2563eb" />}
         />
         <StatCard
           icon={<KeyboardIcon />}

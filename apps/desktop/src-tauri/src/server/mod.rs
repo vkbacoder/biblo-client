@@ -132,7 +132,11 @@ async fn whoami(State(s): State<AppState>) -> Json<Value> {
     }))
 }
 
-async fn ingest(State(s): State<AppState>, headers: HeaderMap, Json(v): Json<VisitIn>) -> StatusCode {
+async fn ingest(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Json(v): Json<VisitIn>,
+) -> StatusCode {
     if let Err(code) = check_request(&headers, s.token.as_str()) {
         return code;
     }
@@ -167,7 +171,11 @@ async fn ingest(State(s): State<AppState>, headers: HeaderMap, Json(v): Json<Vis
 
 /// Receive an error report from the browser extension and forward it to Sentry tagged
 /// `source = "extension"`. Rate-limited so a looping extension error can't flood Sentry.
-async fn report_error(State(s): State<AppState>, headers: HeaderMap, Json(e): Json<ErrorIn>) -> StatusCode {
+async fn report_error(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Json(e): Json<ErrorIn>,
+) -> StatusCode {
     if let Err(code) = check_request(&headers, s.token.as_str()) {
         return code;
     }
@@ -195,7 +203,12 @@ async fn report_error(State(s): State<AppState>, headers: HeaderMap, Json(e): Js
     if let Some(url) = &e.url {
         extras.push(("url", url.clone()));
     }
-    crate::obs::capture_message(sentry::Level::Error, &e.message, "extension", &extras);
+    crate::obs::capture_message(
+        crate::obs::LogLevel::Error,
+        &e.message,
+        "extension",
+        &extras,
+    );
     StatusCode::OK
 }
 
@@ -266,7 +279,10 @@ mod tests {
 
     #[test]
     fn origin_only_strips_path_and_query() {
-        assert_eq!(origin_only("https://github.com/a/b?c=1"), "https://github.com");
+        assert_eq!(
+            origin_only("https://github.com/a/b?c=1"),
+            "https://github.com"
+        );
         assert_eq!(origin_only("http://example.com"), "http://example.com");
         assert_eq!(origin_only("https://sub.host.io/x"), "https://sub.host.io");
         assert_eq!(origin_only("notaurl"), "notaurl");

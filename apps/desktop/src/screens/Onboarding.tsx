@@ -52,11 +52,6 @@ const EyeIcon = () => (
     <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" />
   </svg>
 );
-const TimerIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <circle cx="12" cy="13" r="8" /><path d="M12 9v4M9 2h6M12 5V2" />
-  </svg>
-);
 const CoffeeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z" /><path d="M17 9h2a2 2 0 0 1 0 4h-2M7 2v2M11 2v2" />
@@ -87,7 +82,7 @@ type Persona = "personal" | "employee" | "kid";
 
 type TF = ReturnType<typeof useTranslation>["t"];
 
-/* ---- Step 1: What BiBoTracking captures (capture cards + who-sees) ---- */
+/* ---- Step 1: What Finjulia captures (capture cards + who-sees) ---- */
 function StepCaptures({ t, persona }: { t: TF; persona: Persona }) {
   return (
     <>
@@ -188,35 +183,19 @@ function StepConfigure({
           />
         </div>
         {settings.capture_screenshots && (
-          <>
-            <div className="onb-set-row">
-              <span className="onb-set-ic"><TimerIcon /></span>
-              <span className="onb-set-label">{t("settings:screenshotInterval")}</span>
-              <OnbSelect
-                value={settings.screenshot_interval_s}
-                onChange={(v) => onChange({ screenshot_interval_s: v })}
-                options={[
-                  { label: t("settings:minUnit", { count: 1 }), value: 60 },
-                  { label: t("settings:minUnit", { count: 5 }), value: 300 },
-                  { label: t("settings:minUnit", { count: 10 }), value: 600 },
-                  { label: t("settings:minUnit", { count: 15 }), value: 900 },
-                ]}
-              />
-            </div>
-            <div className="onb-set-row">
-              <span className="onb-set-ic"><HistoryIcon /></span>
-              <span className="onb-set-label">{t("settings:screenshotRetention")}</span>
-              <OnbSelect
-                value={settings.screenshot_retention_days}
-                onChange={(v) => onChange({ screenshot_retention_days: v })}
-                options={[
-                  { label: t("settings:daysUnit", { count: 7 }), value: 7 },
-                  { label: t("settings:daysUnit", { count: 30 }), value: 30 },
-                  { label: t("settings:daysUnit", { count: 90 }), value: 90 },
-                ]}
-              />
-            </div>
-          </>
+          <div className="onb-set-row">
+            <span className="onb-set-ic"><HistoryIcon /></span>
+            <span className="onb-set-label">{t("settings:screenshotRetention")}</span>
+            <OnbSelect
+              value={settings.screenshot_retention_days}
+              onChange={(v) => onChange({ screenshot_retention_days: v })}
+              options={[
+                { label: t("settings:daysUnit", { count: 7 }), value: 7 },
+                { label: t("settings:daysUnit", { count: 30 }), value: 30 },
+                { label: t("settings:daysUnit", { count: 90 }), value: 90 },
+              ]}
+            />
+          </div>
         )}
         <div className="onb-set-row">
           <span className="onb-set-ic"><CoffeeIcon /></span>

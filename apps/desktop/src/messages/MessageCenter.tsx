@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { call as invoke } from "../api";
-import { track } from "../analytics";
 import { whatsNewFor } from "./whatsNew";
 
 // In-app messages (ticket 145): the bundled "What's new" after an update, plus
@@ -41,10 +40,8 @@ const STATE_KEY = "bibo.messages"; // + ":" + user, so a shared machine doesn't 
 const SEEN_VERSION_KEY = "bibo.whatsNewSeen";
 const PLATFORM = navigator.userAgent.includes("Windows") ? "windows" : "macos";
 
-// Popup analytics: Aptabase (product analytics) + our backend, which powers the
-// per-message stats in the web-admin super-admin area. Best effort, never blocks.
-function report(id: string, kind: string, event: string, version: string, locale: string) {
-  track(`message_${event}`, { id, kind });
+
+function report(id: string, _kind: string, event: string, version: string, locale: string) {
   invoke("message_event", { id, event, platform: PLATFORM, version, locale }).catch(() => {});
 }
 

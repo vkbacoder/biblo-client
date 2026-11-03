@@ -46,3 +46,6 @@ scripts/vps-monitor.sh
 
 # Local-only agent notes (contain infra details — never publish)
 CLAUDE.md
+
+# Temporary audit log
+endpoint-audit.txt

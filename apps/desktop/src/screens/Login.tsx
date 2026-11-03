@@ -12,6 +12,7 @@ export type Session = {
   display_name?: string;
   username?: string;
   account_type?: string;
+  role?: string;
 };
 
 /* Inline icons (no icon dependency — matches the inline-mark style used elsewhere). */

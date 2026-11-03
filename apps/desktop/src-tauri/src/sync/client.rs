@@ -58,6 +58,12 @@ struct LoginUser {
     display_name: String,
     #[serde(default)]
     account_type: String,
+    #[serde(default)]
+    role: String,
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    employee_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -173,6 +179,10 @@ impl BackendClient {
         }
     }
 
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
     }
@@ -206,11 +216,29 @@ impl BackendClient {
         Ok(Session {
             access_token: parsed.tokens.access_token,
             refresh_token: parsed.tokens.refresh_token,
-            email: if user.email.is_empty() { email.to_string() } else { user.email },
+            email: if user.email.is_empty() {
+                email.to_string()
+            } else {
+                user.email
+            },
             business_id: business_id.map(|s| s.to_string()),
             display_name: user.display_name,
             username: user.username,
-            account_type: user.account_type,
+            account_type: user.account_type.clone(),
+            role: if !user.role.is_empty() {
+                user.role
+            } else if !user.account_type.is_empty() {
+                user.account_type
+            } else {
+                String::new()
+            },
+            employee_id: user.employee_id.or_else(|| {
+                if !user.id.is_empty() {
+                    Some(user.id)
+                } else {
+                    None
+                }
+            }),
         })
     }
 
@@ -279,7 +307,11 @@ impl BackendClient {
             let resp = self
                 .http
                 .get(self.url("/v1/messages"))
-                .query(&[("platform", platform), ("version", version), ("locale", locale)])
+                .query(&[
+                    ("platform", platform),
+                    ("version", version),
+                    ("locale", locale),
+                ])
                 .bearer_auth(&token)
                 .send()
                 .await
@@ -438,7 +470,11 @@ impl BackendClient {
                 .text("client_uuid", shot.client_uuid.clone())
                 .text("device_id", device_id.to_string())
                 .text("ts", shot.ts.to_string())
-                .text("updated_at", shot.updated_at.to_string());
+                .text("updated_at", shot.updated_at.to_string())
+                .text("capture_source", shot.capture_source.clone());
+            if let Some(ref req_id) = shot.request_id {
+                form = form.text("request_id", req_id.clone());
+            }
             if let Some(w) = shot.width {
                 form = form.text("width", w.to_string());
             }
@@ -477,6 +513,60 @@ impl BackendClient {
             return Ok(parsed.accepted);
         }
         Err("sync_screenshot: unreachable retry exhaustion".into())
+    }
+
+    /// Generic authenticated GET request with auto-refresh on 401.
+    pub async fn get_authed_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+    ) -> Result<T, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .get(self.url(path))
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            return resp.json().await.map_err(|e| e.to_string());
+        }
+        Err("get_authed_json: unreachable retry exhaustion".into())
+    }
+
+    /// Generic authenticated POST request with auto-refresh on 401.
+    pub async fn post_authed_json<B: Serialize, T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .post(self.url(path))
+                .bearer_auth(&token)
+                .json(body)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            return resp.json().await.map_err(|e| e.to_string());
+        }
+        Err("post_authed_json: unreachable retry exhaustion".into())
     }
 }
 
@@ -688,7 +778,10 @@ impl BackendClient {
             let resp = self
                 .http
                 .get(self.url("/v1/reports/employees"))
-                .query(&[("business_id", business_id.to_string()), ("day_start", day_start.to_string())])
+                .query(&[
+                    ("business_id", business_id.to_string()),
+                    ("day_start", day_start.to_string()),
+                ])
                 .bearer_auth(&token)
                 .send()
                 .await
@@ -881,7 +974,13 @@ impl BackendClient {
         username: Option<&str>,
         password: &str,
     ) -> Result<CreatedEmployee, String> {
-        let body = CreateEmployeeReq { email, username, password, display_name, business_id };
+        let body = CreateEmployeeReq {
+            email,
+            username,
+            password,
+            display_name,
+            business_id,
+        };
         let mut token = self.access_token()?;
         for attempt in 0..2 {
             let resp = self

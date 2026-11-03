@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BiBoTracking Staging",
+  "productName": "Finjulia Staging",
   "identifier": "com.briannguyen.ctracking",
   "app": {
     "windows": [
       {
-        "title": "BiBoTracking [STAGING]",
+        "title": "Finjulia [STAGING]",
         "width": 1040,
         "height": 720,
         "minWidth": 880,

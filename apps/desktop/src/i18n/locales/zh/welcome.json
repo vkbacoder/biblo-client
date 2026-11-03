@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "欢迎使用 BiBoTracking",
+    "title": "欢迎使用 Finjulia",
     "sub": "选择您想要的使用方式。",
     "local": {
       "title": "只有我",
@@ -20,13 +20,13 @@
     "status": "状态",
     "paused": "已暂停",
     "tracking": "记录中",
-    "open": "打开 BiBoTracking",
+    "open": "打开 Finjulia",
     "start": "开始记录",
     "stop": "停止记录",
-    "quit": "退出 BiBoTracking"
+    "quit": "退出 Finjulia"
   },
   "consent": {
-    "title": "BiBoTracking 会采集什么",
+    "title": "Finjulia 会采集什么",
     "subtitle": "四类活动。一切尽在您的掌控。",
     "shots": {
       "t": "屏幕截图",

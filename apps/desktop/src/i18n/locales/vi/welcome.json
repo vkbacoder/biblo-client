@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "Chào mừng đến với BiBoTracking",
+    "title": "Chào mừng đến với Finjulia",
     "sub": "Chọn cách bạn muốn dùng ứng dụng.",
     "local": {
       "title": "Chỉ mình tôi",
@@ -20,13 +20,13 @@
     "status": "Trạng thái",
     "paused": "Tạm dừng",
     "tracking": "Đang theo dõi",
-    "open": "Mở BiBoTracking",
+    "open": "Mở Finjulia",
     "start": "Bắt đầu theo dõi",
     "stop": "Ngừng theo dõi",
-    "quit": "Thoát khỏi BiBoTracking"
+    "quit": "Thoát khỏi Finjulia"
   },
   "consent": {
-    "title": "BiBoTracking thu thập những gì",
+    "title": "Finjulia thu thập những gì",
     "subtitle": "Bốn loại hoạt động. Bạn luôn toàn quyền kiểm soát.",
     "shots": {
       "t": "Ảnh chụp màn hình",

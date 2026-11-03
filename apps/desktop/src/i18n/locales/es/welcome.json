@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "Te damos la bienvenida a BiBoTracking",
+    "title": "Te damos la bienvenida a Finjulia",
     "sub": "Elige cómo quieres usar la aplicación.",
     "local": {
       "title": "Solo yo",
@@ -20,13 +20,13 @@
     "status": "Estado",
     "paused": "En pausa",
     "tracking": "Registrando",
-    "open": "Abrir BiBoTracking",
+    "open": "Abrir Finjulia",
     "start": "Iniciar registro",
     "stop": "Detener registro",
-    "quit": "Salir de BiBoTracking"
+    "quit": "Salir de Finjulia"
   },
   "consent": {
-    "title": "Qué captura BiBoTracking",
+    "title": "Qué captura Finjulia",
     "subtitle": "Cuatro tipos de actividad. Siempre tienes el control.",
     "shots": {
       "t": "Capturas de pantalla",

@@ -1,16 +1,16 @@
 //! ctracking — local-only macOS activity tracker.
 //! Module layout per docs/01-architecture.md.
 
-mod analytics;
 mod commands;
 mod obs;
 mod platform;
+pub mod policy;
 mod server;
 mod settings;
 mod storage;
-mod sync;
-mod tray;
+pub mod sync;
 mod trackers;
+mod tray;
 
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
@@ -61,20 +61,12 @@ pub async fn fetch_privacy_apps_or_baked() -> Vec<sync::client::PrivacyAppCatego
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Sentry error reporting for the Rust core. Held for the whole process (drop =
-    // flush); no-op when CTRACKING_SENTRY_DSN is unset. Installs the panic hook too.
-    let _sentry = obs::init();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        // Auto-update: check a signed manifest on our own domain, download + install.
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::ping,
-            commands::track_event,
-
             commands::set_paused,
             commands::set_in_setup,
             commands::is_paused,
@@ -82,6 +74,7 @@ pub fn run() {
             commands::dashboard_data,
             commands::keystroke_buckets,
             commands::screenshot_list,
+            commands::screenshot_summary,
             commands::browser_visits,
             commands::get_settings,
             commands::set_settings,
@@ -116,6 +109,10 @@ pub fn run() {
             commands::messages_fetch,
             commands::message_respond,
             commands::message_event,
+            commands::screenshot_policy_status,
+            commands::screenshot_policy_refresh,
+            commands::screenshot_manual_request,
+            commands::screenshot_policy_simulate_update,
         ])
         .setup(|app| {
             // Open the local SQLite DB under the app data dir.
@@ -132,12 +129,7 @@ pub fn run() {
             let loaded = settings::load_with_device_id(&settings_path);
             settings::apply(&loaded, &control);
             let hide_dock = loaded.hide_dock;
-            let loaded_locale = loaded.locale.clone();
-            // One fresh Aptabase session id per launch, shared by the native launch/focus
-            // events and the web-UI `track_event` command. A stable per-day key made
-            // Aptabase drop repeat posts so events never landed (ticket 135).
-            let analytics_session = analytics::AnalyticsSession(uuid::Uuid::new_v4().to_string());
-            app.manage(analytics_session.clone());
+
             let settings_state = Arc::new(settings::SettingsState {
                 path: settings_path,
                 current: std::sync::Mutex::new(loaded),
@@ -151,39 +143,19 @@ pub fn run() {
             tray::build(&app.handle(), control.clone())?;
             apply_dock_policy(&app.handle(), hide_dock);
 
-            // Keep running when the window is closed — hide to the menu bar instead.
-            // Also emit an `app_active` analytics event when the window regains focus. We do
-            // this natively (WindowEvent::Focused): the JS DOM `focus`/`onFocusChanged`
-            // listener does NOT fire on native window activation in the webview. Throttled
-            // to ≥30 s so rapid switching doesn't spam.
+            // Keep the window behavior and notify the UI when the window comes to the front.
+
             if let Some(win) = app.get_webview_window("main") {
                 let w = win.clone();
-                let analytics_queue = data_dir.join("analytics-queue");
-                let analytics_session_id = analytics_session.0.clone();
-                let analytics_locale = loaded_locale.clone();
-                let last_active = std::sync::atomic::AtomicI64::new(0);
+
                 win.on_window_event(move |event| match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = w.hide();
                     }
                     tauri::WindowEvent::Focused(true) => {
-                        // Tell the UI the window came to the front (launch, Dock/tray
-                        // "Open", app switch) — the DOM focus event doesn't fire here.
-                        // Used by the in-app message popup (ticket 145).
+                        // Preserve the event used by the in-app message popup.
                         let _ = w.emit("app-focused", ());
-                        use std::sync::atomic::Ordering;
-                        let now = now_unix();
-                        if now - last_active.load(Ordering::Relaxed) >= 30 {
-                            last_active.store(now, Ordering::Relaxed);
-                            analytics::track_event(
-                                "app_active".into(),
-                                analytics_locale.clone(),
-                                analytics_session_id.clone(),
-                                analytics_queue.clone(),
-                                None,
-                            );
-                        }
                     }
                     _ => {}
                 });
@@ -193,11 +165,23 @@ pub fn run() {
             // and routes the user to the Permissions screen, where every request is
             // user-initiated (see App.tsx startup check).
 
-            // Start the trackers, keyboard counter, screenshots, retention cleanup.
+            // Screenshot Policy Manager (Server-controlled screenshot management)
+            let policy_cache_path = data_dir.join("screenshot_policy_cache.json");
+            let policy_manager = Arc::new(policy::ScreenshotPolicyManager::load_or_default(
+                policy_cache_path,
+            ));
+            app.manage(policy_manager.clone());
+
+            // Start the trackers, keyboard counter, controlled screenshots, retention cleanup.
             let shots_dir = data_dir.join("screenshots");
             trackers::start(db.clone(), control.clone());
             trackers::start_keyboard(db.clone(), control.clone());
-            trackers::start_screenshots(db.clone(), control.clone(), shots_dir);
+            policy::start_controlled_scheduler(
+                db.clone(),
+                control.clone(),
+                policy_manager.clone(),
+                shots_dir.clone(),
+            );
             trackers::start_cleanup(db.clone(), control.clone());
 
             // Start the local ingest server for the browser extension.
@@ -208,24 +192,47 @@ pub fn run() {
             let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
             app.manage(auth.clone());
 
+            // Dedicated adapter for screenshot policy communication with backend
+            let screenshot_adapter = Arc::new(
+                sync::ScreenshotPolicyAdapter::new(
+                    settings::backend_base_url(),
+                    auth.clone(),
+                    policy_manager.clone(),
+                )
+                .with_control(control.clone()),
+            );
+            app.manage(screenshot_adapter.clone());
+
             // Sync worker (task 53): pushes pending rows to the backend in the
-            // background. No-op while logged out / offline.
+            // background and polls pending screenshot requests. No-op while logged out / offline.
             let status = Arc::new(sync::worker::SyncStatus::default());
             app.manage(status.clone());
             sync::worker::start(sync::worker::SyncContext {
                 db: db.clone(),
-                auth,
+                auth: auth.clone(),
                 status,
                 settings: settings_state,
+                policy_manager: policy_manager.clone(),
+                adapter: screenshot_adapter.clone(),
+                control: control.clone(),
+                screenshots_dir: shots_dir,
+                stop_signal: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             });
+
+            // Initial policy refresh if already authenticated
+            if let Some(session) = auth.session() {
+                let emp_id = session.resolved_employee_id();
+                if !emp_id.is_empty() {
+                    let adapter_for_boot = screenshot_adapter.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = adapter_for_boot.sync_policy(&emp_id).await;
+                    });
+                }
+            }
 
             // Manage remaining state so commands can reach the DB.
             app.manage(db);
 
-            // Product analytics: one fire-and-forget event per launch (crash-free,
-            // direct Aptabase API — see analytics.rs). Tagged with the per-launch
-            // analytics_session; offline launches queue under data_dir for later flush.
-            analytics::track_app_started(loaded_locale, analytics_session.0.clone(), data_dir.join("analytics-queue"));
             Ok(())
         })
         .run(tauri::generate_context!())

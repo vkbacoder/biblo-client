@@ -21,7 +21,7 @@
     "colDuration": "Durasi",
     "colBrowser": "Peramban",
     "title": "Lacak halaman web",
-    "subtitle": "Pasang ekstensi BiBoTracking untuk melihat halaman yang Anda kunjungi di sini.",
+    "subtitle": "Pasang ekstensi Finjulia untuk melihat halaman yang Anda kunjungi di sini.",
     "gifPlaceholder": "[ GIF: memasang ekstensi Chrome ]",
     "step1": "Buka Google Chrome",
     "step2Prefix": "Buka Chrome Web Store — ",
@@ -39,7 +39,7 @@
     "colWhen": "Kapan"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "Finjulia",
     "stepOf": "Langkah {{current}} dari {{total}}"
   }
 }

@@ -43,7 +43,7 @@
     },
     "changeLater": "你可以随时在“设置”中更改这些选项。",
     "title": "配置采集",
-    "subtitle": "设置 BiBoTracking 的记录方式。随时可在设置中更改。"
+    "subtitle": "设置 Finjulia 的记录方式。随时可在设置中更改。"
   },
   "step3": {
     "heading": "授予权限",

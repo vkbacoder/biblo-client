@@ -1,6 +1,6 @@
 {
   "title": "Permissions",
-  "intro": "BiBoTracking uses the capabilities below. Status updates automatically.",
+  "intro": "Finjulia uses the capabilities below. Status updates automatically.",
   "granted": "Granted",
   "quitReopen": "Quit & Reopen",
   "request": "Request",
@@ -11,7 +11,7 @@
   "restartNote": "Some permissions require quitting & reopening the app to take effect.",
   "startupNotice": {
     "title": "Permissions needed",
-    "body": "BiBoTracking started without some required permissions — it never asks for them automatically. Grant them below to enable full tracking.",
+    "body": "Finjulia started without some required permissions — it never asks for them automatically. Grant them below to enable full tracking.",
     "open": "Open Permissions",
     "dismiss": "Dismiss"
   },

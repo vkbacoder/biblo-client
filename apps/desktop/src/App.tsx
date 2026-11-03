@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { call as invoke } from "./api";
-import { Sentry } from "./sentry";
-import { autoCheckAndPrompt } from "./updater";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
-import { track } from "./analytics";
 import { useTranslation } from "react-i18next";
 import { Segmented } from "./ui";
 import { dragWindow } from "./components/dragWindow";
 import { Dashboard } from "./screens/Dashboard";
 import { Permissions } from "./screens/Permissions";
-import { Screenshots } from "./screens/Screenshots";
 import { Browser } from "./screens/Browser";
 import { Activity } from "./screens/Activity";
 import { Settings, type AppSettings, type CaptureManaged } from "./screens/Settings";
@@ -28,7 +24,6 @@ import { AppTrayMenu } from "./components/AppTrayMenu";
 type Screen =
   | "Dashboard"
   | "Activity"
-  | "Screenshots"
   | "Browser"
   | "Permissions"
   | "TeamOverview"
@@ -39,7 +34,7 @@ type Screen =
 // owner-only team management (hidden unless isOwner), "app" = app-wide settings.
 type NavGroup = { key: "me" | "admin" | "app"; items: Screen[] };
 const NAV_GROUPS: NavGroup[] = [
-  { key: "me", items: ["Dashboard", "Activity", "Screenshots", "Browser", "Permissions"] },
+  { key: "me", items: ["Dashboard", "Activity", "Browser", "Permissions"] },
   { key: "admin", items: ["TeamOverview", "Members"] },
   { key: "app", items: ["Settings"] },
 ];
@@ -62,11 +57,6 @@ const GridIcon = () => (
 const ActivityIcon = () => (
   <svg {...svgProps} aria-hidden><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
 );
-const CameraNavIcon = () => (
-  <svg {...svgProps} aria-hidden>
-    <path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4z" /><circle cx="12" cy="13" r="3.2" />
-  </svg>
-);
 const GlobeNavIcon = () => (
   <svg {...svgProps} aria-hidden>
     <circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a13 13 0 0 1 0 18 13 13 0 0 1 0-18" />
@@ -78,7 +68,7 @@ const ShieldNavIcon = () => (
 const GearIcon = () => (
   <svg {...svgProps} aria-hidden>
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06-.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 const HardDriveIcon = () => (
@@ -107,7 +97,6 @@ const TeamOverviewIcon = () => (
 const NAV_ICON: Record<Screen, () => ReactElement> = {
   Dashboard: GridIcon,
   Activity: ActivityIcon,
-  Screenshots: CameraNavIcon,
   Browser: GlobeNavIcon,
   Permissions: ShieldNavIcon,
   TeamOverview: TeamOverviewIcon,
@@ -135,12 +124,31 @@ function applyTheme(mode: string) {
 
 type TrackStatus = "tracking" | "idle" | "paused";
 
+type SyncStatus = {
+  last_sync_ts: number;
+  pending: number;
+  last_error: string;
+};
+
+type EffectivePolicy = {
+  state: "Active" | "FailClosed" | "Disabled";
+  capture_enabled: boolean;
+  continuous_capture_enabled: boolean;
+  capture_interval_minutes: number;
+  manual_capture_enabled: boolean;
+  policy_version: number;
+  last_synced_at: number;
+  employee_id: string;
+};
+
 function App() {
   const { t, i18n } = useTranslation();
   const [screen, setScreen] = useState<Screen>("Dashboard");
   const [status, setStatus] = useState<TrackStatus>("tracking");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [captureManaged, setCaptureManaged] = useState<CaptureManaged | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [policyStatus, setPolicyStatus] = useState<EffectivePolicy | null>(null);
   // undefined = still checking; null = logged out; Session = logged in.
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   // Whether the user clicked "I have an account" on the welcome screen.
@@ -157,27 +165,12 @@ function App() {
   const [memberDetail, setMemberDetail] = useState<RosterEntry | null>(null);
   // Installed app version (from tauri.conf.json), shown under the sidebar brand.
   const [version, setVersion] = useState<string>("");
-  // Latest screen, readable from the (mount-once) analytics click listener.
-  const screenRef = useRef(screen);
-  screenRef.current = screen;
+
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => {});
   }, []);
 
-  // Product analytics (ticket 133): UI clicks → Aptabase. (`app_active` is emitted
-  // natively in Rust on WindowEvent::Focused — the webview doesn't get reliable native
-  // focus events.) Delegated listener: any button or sidebar nav item, by its text.
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const el = (e.target as HTMLElement | null)?.closest?.("button, .nav-item");
-      if (!el) return;
-      const label = (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 40);
-      track("ui_click", { label, screen: screenRef.current });
-    };
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, []);
 
   useEffect(() => {
     invoke<Session | null>("current_session")
@@ -221,33 +214,6 @@ function App() {
   useEffect(() => {
     setMemberDetail(null);
   }, [bizId]);
-
-  // Check for a signed app update on launch and whenever the window regains focus.
-  // Throttled + de-duped inside updater.ts. On a newer version it downloads silently,
-  // then prompts the user to restart — it never relaunches without confirmation.
-  useEffect(() => {
-    autoCheckAndPrompt();
-    const onFocus = () => autoCheckAndPrompt();
-    const onVisible = () => {
-      if (!document.hidden) autoCheckAndPrompt();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
-
-  // Identify the signed-in user to Sentry (UI project). `undefined` = still checking,
-  // so only act once we know logged-in vs out.
-  useEffect(() => {
-    if (session) {
-      Sentry.setUser({ email: session.email, username: session.email });
-    } else if (session === null) {
-      Sentry.setUser(null);
-    }
-  }, [session]);
 
   // Past the auth gate when either signed in OR running in personal/local mode.
   const pastAuthGate = session != null || settings?.local_only === true;
@@ -324,6 +290,18 @@ function App() {
     return () => {
       unlisten.then((f) => f());
     };
+  }, [pastAuthGate]);
+
+  // Periodic polling for truthful connection & screenshot policy status
+  useEffect(() => {
+    if (!pastAuthGate) return;
+    const poll = () => {
+      invoke<SyncStatus>("sync_status").then(setSyncStatus).catch(() => {});
+      invoke<EffectivePolicy>("screenshot_policy_status").then(setPolicyStatus).catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 4000);
+    return () => clearInterval(id);
   }, [pastAuthGate]);
 
   // Org capture policy only applies to real (signed-in) accounts.
@@ -414,7 +392,7 @@ function App() {
   }
 
   // First-run onboarding (3 steps: what's captured → configure → permissions),
-  // shown once per install. Step 1 is the "What BiBoTracking captures" disclosure,
+  // shown once per install. Step 1 is the "What Finjulia captures" disclosure,
   // so finishing/skipping it also records `consented` (gates capture on Windows).
   if (settings && !settings.onboarding_completed) {
     return (
@@ -440,10 +418,18 @@ function App() {
         ? t("statusTooltip.idle")
         : t("statusTooltip.tracking");
 
+  const connectionState = settings?.local_only
+    ? "local"
+    : !session
+      ? "offline"
+      : syncStatus?.last_error
+        ? "error"
+        : "connected";
+
   return (
     <div className="app">
       <div className="app-titlebar" onMouseDown={dragWindow}>
-        <span className="app-titlebar-title">BiBoTracking — {headerTitle}</span>
+        <span className="app-titlebar-title">Finjulia — {headerTitle}</span>
         <AppTrayMenu status={status} onToggleTracking={toggleTracking} />
       </div>
       <div className="app-body">
@@ -456,7 +442,7 @@ function App() {
             </svg>
           </span>
           <span className="brand-text">
-            <span className="brand-name">Bi<span className="brand-accent">Bo</span>Tracking</span>
+            <span className="brand-name">Finjulia</span>
             {version && <span className="brand-version">v{version}</span>}
           </span>
         </div>
@@ -496,7 +482,19 @@ function App() {
             <div className="account-box">
               <div className="account-row">
                 <span className="account-ic"><UserIcon /></span>
-                <span className="account-text" title={session.email}>{session.email}</span>
+                <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                  <span className="account-text" style={{ fontWeight: 600, color: "var(--text)" }} title={session.display_name || session.email}>
+                    {session.display_name || session.email}
+                  </span>
+                  {session.display_name && session.email && (
+                    <span className="account-text" style={{ fontSize: 11, color: "var(--text-muted)" }} title={session.email}>
+                      {session.email}
+                    </span>
+                  )}
+                  <span className="bb-role-badge">
+                    {session.role ? session.role.replace("_", " ") : (session.account_type || "employee")}
+                  </span>
+                </div>
               </div>
               <button className="account-link" onClick={signOut}>
                 {t("account.signOut")}
@@ -534,6 +532,73 @@ function App() {
                 onSelect={setBizId}
               />
             )}
+
+            {/* Truthful Connection Status */}
+            <span className="bibo-tip">
+              <span className="bb-statuspill">
+                <span
+                  className={`bb-statuspill__dot ${
+                    connectionState === "connected"
+                      ? "is-green"
+                      : connectionState === "error"
+                        ? "is-red"
+                        : "is-amber"
+                  }`}
+                />
+                <span>
+                  {connectionState === "connected"
+                    ? t("connection.connected", "Connected")
+                    : connectionState === "error"
+                      ? t("connection.syncIssue", "Sync issue")
+                      : connectionState === "local"
+                        ? t("connection.localMode", "Local mode")
+                        : t("connection.offline", "Offline")}
+                </span>
+              </span>
+              <span className="bibo-tip__bubble" role="tooltip">
+                {connectionState === "connected"
+                  ? "Connected to server · Sync active"
+                  : connectionState === "error"
+                    ? syncStatus?.last_error
+                      ? `Sync failed: ${syncStatus.last_error}`
+                      : "Sync error encountered"
+                    : connectionState === "local"
+                      ? "Running in offline local mode"
+                      : "Not connected"}
+              </span>
+            </span>
+
+            {/* Truthful Screenshot Monitoring Status */}
+            {session && (
+              <span className="bibo-tip">
+                <span className="bb-statuspill">
+                  <span
+                    className={`bb-statuspill__dot ${
+                      policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                        ? "is-green"
+                        : policyStatus?.state === "FailClosed"
+                          ? "is-amber"
+                          : "is-neutral"
+                    }`}
+                  />
+                  <span>
+                    {policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                      ? t("monitoring.active", "Screenshots: On")
+                      : policyStatus?.state === "FailClosed"
+                        ? t("monitoring.suspended", "Screenshots: Suspended")
+                        : t("monitoring.off", "Screenshots: Off")}
+                  </span>
+                </span>
+                <span className="bibo-tip__bubble" role="tooltip">
+                  {policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                    ? "Screenshot monitoring active per organization policy"
+                    : policyStatus?.state === "FailClosed"
+                      ? "Screenshot capture temporarily suspended (fail-closed)"
+                      : "Screenshot capture disabled by organization policy"}
+                </span>
+              </span>
+            )}
+
             <LanguageSwitcher compact />
             <Segmented
               options={["Light", "Dark", "System"]}
@@ -582,7 +647,6 @@ function App() {
           )}
           {screen === "Dashboard" && <Dashboard />}
           {screen === "Activity" && <Activity />}
-          {screen === "Screenshots" && <Screenshots />}
           {screen === "Browser" && <Browser />}
           {screen === "Permissions" && <Permissions />}
           {screen === "TeamOverview" &&
