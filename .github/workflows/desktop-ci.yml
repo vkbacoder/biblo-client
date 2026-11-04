@@ -119,8 +119,15 @@ jobs:
         run: cargo test --target aarch64-apple-darwin
 
       - name: Build macOS Apple Silicon bundle
-        run: pnpm --dir apps/desktop tauri build --target aarch64-apple-darwin
-        continue-on-error: true
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "Apple Developer certificate found. Building signed Apple Silicon bundle..."
+            pnpm --dir apps/desktop tauri build --target aarch64-apple-darwin
+          else
+            echo "No Apple Developer certificate found. Building unsigned Apple Silicon bundle (--no-sign)..."
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+            pnpm --dir apps/desktop tauri build --target aarch64-apple-darwin --no-sign
+          fi
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -130,8 +137,15 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Build macOS Intel bundle
-        run: pnpm --dir apps/desktop tauri build --target x86_64-apple-darwin
-        continue-on-error: true
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "Apple Developer certificate found. Building signed Intel bundle..."
+            pnpm --dir apps/desktop tauri build --target x86_64-apple-darwin
+          else
+            echo "No Apple Developer certificate found. Building unsigned Intel bundle (--no-sign)..."
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+            pnpm --dir apps/desktop tauri build --target x86_64-apple-darwin --no-sign
+          fi
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -141,8 +155,15 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Build macOS Universal bundle
-        run: pnpm --dir apps/desktop tauri build --target universal-apple-darwin
-        continue-on-error: true
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "Apple Developer certificate found. Building signed Universal bundle..."
+            pnpm --dir apps/desktop tauri build --target universal-apple-darwin
+          else
+            echo "No Apple Developer certificate found. Building unsigned Universal bundle (--no-sign)..."
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+            pnpm --dir apps/desktop tauri build --target universal-apple-darwin --no-sign
+          fi
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -151,6 +172,33 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Verify generated macOS DMGs
+        run: |
+          echo "=== Verifying Generated macOS DMGs on Disk ==="
+          find apps/desktop/src-tauri/target -name "*.dmg" -ls
+
+          AARCH64_DMG=$(find apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name "*.dmg" 2>/dev/null | head -n 1)
+          X64_DMG=$(find apps/desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" 2>/dev/null | head -n 1)
+          UNIVERSAL_DMG=$(find apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" 2>/dev/null | head -n 1)
+
+          if [ -z "$AARCH64_DMG" ]; then
+            echo "::error::Apple Silicon DMG was not generated!"
+            exit 1
+          fi
+          if [ -z "$X64_DMG" ]; then
+            echo "::error::Intel DMG was not generated!"
+            exit 1
+          fi
+          if [ -z "$UNIVERSAL_DMG" ]; then
+            echo "::error::Universal DMG was not generated!"
+            exit 1
+          fi
+
+          echo "Successfully verified all three DMGs exist on disk:"
+          echo "  Apple Silicon DMG: $AARCH64_DMG"
+          echo "  Intel DMG:         $X64_DMG"
+          echo "  Universal DMG:     $UNIVERSAL_DMG"
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -158,4 +206,4 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/*/release/bundle/dmg/*.dmg
             apps/desktop/src-tauri/target/*/release/bundle/macos/*.app
-          if-no-files-found: warn
+          if-no-files-found: error
