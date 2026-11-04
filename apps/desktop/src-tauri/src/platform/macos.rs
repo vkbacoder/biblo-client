@@ -130,16 +130,15 @@ pub fn request_accessibility() -> bool {
     use core_foundation::base::TCFType;
     use core_foundation::boolean::CFBoolean;
     use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
-    use core_foundation::string::{CFString, CFStringRef};
+    use core_foundation::string::CFString;
 
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
-        static kAXTrustedCheckOptionPrompt: CFStringRef;
         fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> u8;
     }
 
     unsafe {
-        let key = CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt);
+        let key = CFString::from_static_string("AXTrustedCheckOptionPrompt");
         let value = CFBoolean::true_value();
         let options = CFDictionary::from_CFType_pairs(&[(key.as_CFType(), value.as_CFType())]);
         AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef()) != 0
@@ -240,6 +239,9 @@ mod keytap {
             }
             TAP_PORT.store(tap, Ordering::Relaxed);
             let source = CFMachPortCreateRunLoopSource(ptr::null(), tap, 0);
+            if source.is_null() {
+                return false;
+            }
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
             CGEventTapEnable(tap, true);
             CFRunLoopRun(); // blocks while the tap is active

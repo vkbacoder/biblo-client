@@ -432,6 +432,7 @@ fn contains_word(name: &str, pat: &str) -> bool {
 /// can have several windows (e.g. two Chrome windows) and size says nothing
 /// about which is in front. Returns `None` on any lookup/capture miss so the
 /// caller falls back to a full-screen shot.
+#[allow(dead_code)]
 fn capture_active_window(
     db: &Db,
     dir: &Path,
@@ -487,6 +488,20 @@ pub fn capture_once_uuids_with_meta(
         return Vec::new();
     }
 
+    // On macOS, verify Screen Recording permission before attempting capture.
+    #[cfg(target_os = "macos")]
+    {
+        if crate::platform::permission_status(crate::platform::Permission::ScreenRecording)
+            != crate::platform::PermissionState::Granted
+        {
+            crate::log_warn!(
+                "screenshot",
+                "Screen Recording permission not granted. Full-screen display capture skipped. Grant Screen Recording permission in System Settings -> Privacy & Security -> Screen Recording."
+            );
+            return Vec::new();
+        }
+    }
+
     let mode = control.screenshot_mode.load(Ordering::Relaxed);
     let active = crate::platform::active_window();
     // The skip-list is a privacy-mode feature (normal mode captures everything).
@@ -505,6 +520,10 @@ pub fn capture_once_uuids_with_meta(
     }
 
     let now = now_ts();
+
+    // On Windows, privacy mode captures only the frontmost active window.
+    // On macOS, the requirement is strictly full-display capture across all screens; never active window.
+    #[cfg(target_os = "windows")]
     if mode == SHOT_MODE_PRIVACY {
         if let Some(uuid) = active
             .as_ref()
@@ -528,18 +547,28 @@ pub fn capture_once_uuids_with_meta(
         }
     };
 
+    if monitors.is_empty() {
+        crate::log_warn!("screenshot", "no active monitors found to capture");
+        return Vec::new();
+    }
+
     let mut saved_uuids = Vec::new();
     for (i, monitor) in monitors.into_iter().enumerate() {
+        let (disp_w, disp_h) = (monitor.width().unwrap_or(0), monitor.height().unwrap_or(0));
         let img = match monitor.capture_image() {
             Ok(img) => img,
             Err(e) => {
-                crate::log_warn!("screenshot", "capture failed: {e}");
+                crate::log_warn!("screenshot", "capture failed for monitor {i}: {e}");
                 continue;
             }
         };
-        // Compress to a small WebP; store the *encoded* dimensions so width/height
-        // match the bytes on disk (and what the backend records).
-        let (bytes, w, h) = compress_to_webp(&img);
+
+        // Determine actual physical resolution (fallback to image dimensions if monitor report is 0)
+        let actual_w = if disp_w > 0 { disp_w } else { img.width() };
+        let actual_h = if disp_h > 0 { disp_h } else { img.height() };
+
+        // Compress to a small WebP; store the physical resolution in width/height metadata.
+        let (bytes, _enc_w, _enc_h) = compress_to_webp(&img);
         let path = dir.join(format!("{now}_display{i}.webp"));
         if let Err(e) = std::fs::write(&path, &bytes) {
             crate::log_warn!("screenshot", "save failed: {e}");
@@ -549,8 +578,8 @@ pub fn capture_once_uuids_with_meta(
             ts: now,
             file_path: path.to_string_lossy().into_owned(),
             display_id: Some(i as i64),
-            width: Some(w as i64),
-            height: Some(h as i64),
+            width: Some(actual_w as i64),
+            height: Some(actual_h as i64),
         };
         let uuid = uuid::Uuid::new_v4().to_string();
         if let Err(e) = db.insert_screenshot_full(&shot, &uuid, request_id, capture_source) {

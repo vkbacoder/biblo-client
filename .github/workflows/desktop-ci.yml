@@ -118,8 +118,31 @@ jobs:
         working-directory: apps/desktop/src-tauri
         run: cargo test --target aarch64-apple-darwin
 
-      - name: Build macOS Universal (or Apple Silicon) bundle
+      - name: Build macOS Apple Silicon bundle
+        run: pnpm --dir apps/desktop tauri build --target aarch64-apple-darwin
+        continue-on-error: true
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build macOS Intel bundle
+        run: pnpm --dir apps/desktop tauri build --target x86_64-apple-darwin
+        continue-on-error: true
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build macOS Universal bundle
         run: pnpm --dir apps/desktop tauri build --target universal-apple-darwin
+        continue-on-error: true
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -131,8 +154,8 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: finjulia-macos-universal
+          name: finjulia-macos
           path: |
-            apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+            apps/desktop/src-tauri/target/*/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/*/release/bundle/macos/*.app
           if-no-files-found: warn
