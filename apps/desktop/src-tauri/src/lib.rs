@@ -61,24 +61,24 @@ pub async fn fetch_privacy_apps_or_baked() -> Vec<sync::client::PrivacyAppCatego
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-#[cfg(target_os = "macos")]
-fn migrate_legacy_macos_data(new_dir: &std::path::Path) {
-    if let Some(parent) = new_dir.parent() {
-        let legacy_dir = parent.join("com.briannguyen.bibotracking");
-        if legacy_dir.is_dir() {
-            let files_to_migrate = ["session.json", "settings.json", "data.db"];
-            for fname in &files_to_migrate {
-                let target = new_dir.join(fname);
-                let source = legacy_dir.join(fname);
-                if !target.exists() && source.exists() {
-                    if let Ok(_) = std::fs::copy(&source, &target) {
-                        crate::log_info!("init", "migrated legacy {} from {:?}", fname, source);
+    #[cfg(target_os = "macos")]
+    fn migrate_legacy_macos_data(new_dir: &std::path::Path) {
+        if let Some(parent) = new_dir.parent() {
+            let legacy_dir = parent.join("com.briannguyen.bibotracking");
+            if legacy_dir.is_dir() {
+                let files_to_migrate = ["session.json", "settings.json", "data.db"];
+                for fname in &files_to_migrate {
+                    let target = new_dir.join(fname);
+                    let source = legacy_dir.join(fname);
+                    if !target.exists() && source.exists() {
+                        if let Ok(_) = std::fs::copy(&source, &target) {
+                            crate::log_info!("init", "migrated legacy {} from {:?}", fname, source);
+                        }
                     }
                 }
             }
         }
     }
-}
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

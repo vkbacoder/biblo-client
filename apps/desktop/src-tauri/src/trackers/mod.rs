@@ -542,7 +542,10 @@ pub fn capture_once_uuids_with_meta(
         Ok(m) => m,
         Err(e) => {
             #[cfg(target_os = "macos")]
-            let perm_diag = format!(" (macOS ScreenRecording permission: {:?})", crate::platform::permission_status(crate::platform::Permission::ScreenRecording));
+            let perm_diag = format!(
+                " (macOS ScreenRecording permission: {:?})",
+                crate::platform::permission_status(crate::platform::Permission::ScreenRecording)
+            );
             #[cfg(not(target_os = "macos"))]
             let perm_diag = String::new();
             crate::log_warn!("screenshot", "enumerate monitors failed: {e}{perm_diag}");
@@ -562,10 +565,18 @@ pub fn capture_once_uuids_with_meta(
             Ok(img) => img,
             Err(e) => {
                 #[cfg(target_os = "macos")]
-                let perm_diag = format!(" (macOS ScreenRecording permission: {:?})", crate::platform::permission_status(crate::platform::Permission::ScreenRecording));
+                let perm_diag = format!(
+                    " (macOS ScreenRecording permission: {:?})",
+                    crate::platform::permission_status(
+                        crate::platform::Permission::ScreenRecording
+                    )
+                );
                 #[cfg(not(target_os = "macos"))]
                 let perm_diag = String::new();
-                crate::log_warn!("screenshot", "capture failed for monitor {i}: {e}{perm_diag}");
+                crate::log_warn!(
+                    "screenshot",
+                    "capture failed for monitor {i}: {e}{perm_diag}"
+                );
                 continue;
             }
         };

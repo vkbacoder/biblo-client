@@ -606,8 +606,12 @@ pub fn process_manual_capture(
     } else {
         #[cfg(target_os = "macos")]
         let err_detail = {
-            let perm = crate::platform::permission_status(crate::platform::Permission::ScreenRecording);
-            format!("Capture engine produced 0 screenshots (macOS ScreenRecording permission: {:?})", perm)
+            let perm =
+                crate::platform::permission_status(crate::platform::Permission::ScreenRecording);
+            format!(
+                "Capture engine produced 0 screenshots (macOS ScreenRecording permission: {:?})",
+                perm
+            )
         };
         #[cfg(not(target_os = "macos"))]
         let err_detail = "Capture engine produced 0 screenshots".to_string();

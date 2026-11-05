@@ -278,7 +278,9 @@ pub async fn process_pending_capture_requests(ctx: &SyncContext) -> PassOutcome 
         let needs_refresh = eff.state == PolicyState::Unavailable
             || eff.state != PolicyState::Active
             || req.policy_version > eff.policy_version
-            || (req.policy_version == 0 && eff.policy_version == 0 && eff.state != PolicyState::Active)
+            || (req.policy_version == 0
+                && eff.policy_version == 0
+                && eff.state != PolicyState::Active)
             || !eff.capture_enabled
             || !eff.manual_capture_enabled;
 
@@ -404,10 +406,14 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
                     .sync_batch(&device_id, business_id.as_deref(), &[], &[], &[])
                     .await
                 {
-                    ctx.status.record_error(format!("presence heartbeat: {e}"), pending_total(ctx));
+                    ctx.status
+                        .record_error(format!("presence heartbeat: {e}"), pending_total(ctx));
                     failed = true;
                 } else {
-                    crate::log_info!("sync", "device presence heartbeat successfully sent to backend");
+                    crate::log_info!(
+                        "sync",
+                        "device presence heartbeat successfully sent to backend"
+                    );
                 }
             }
             break;
