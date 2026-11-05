@@ -488,17 +488,16 @@ pub fn capture_once_uuids_with_meta(
         return Vec::new();
     }
 
-    // On macOS, verify Screen Recording permission before attempting capture.
+    // On macOS, log Screen Recording permission diagnostics without prematurely aborting capture attempt.
     #[cfg(target_os = "macos")]
     {
-        if crate::platform::permission_status(crate::platform::Permission::ScreenRecording)
-            != crate::platform::PermissionState::Granted
-        {
-            crate::log_warn!(
+        let perm = crate::platform::permission_status(crate::platform::Permission::ScreenRecording);
+        if perm != crate::platform::PermissionState::Granted {
+            crate::log_info!(
                 "screenshot",
-                "Screen Recording permission not granted. Full-screen display capture skipped. Grant Screen Recording permission in System Settings -> Privacy & Security -> Screen Recording."
+                "Screen Recording permission status reports {:?}; proceeding with display capture attempt",
+                perm
             );
-            return Vec::new();
         }
     }
 
@@ -542,7 +541,11 @@ pub fn capture_once_uuids_with_meta(
     let monitors = match xcap::Monitor::all() {
         Ok(m) => m,
         Err(e) => {
-            crate::log_warn!("screenshot", "enumerate monitors failed: {e}");
+            #[cfg(target_os = "macos")]
+            let perm_diag = format!(" (macOS ScreenRecording permission: {:?})", crate::platform::permission_status(crate::platform::Permission::ScreenRecording));
+            #[cfg(not(target_os = "macos"))]
+            let perm_diag = String::new();
+            crate::log_warn!("screenshot", "enumerate monitors failed: {e}{perm_diag}");
             return Vec::new();
         }
     };
@@ -558,7 +561,11 @@ pub fn capture_once_uuids_with_meta(
         let img = match monitor.capture_image() {
             Ok(img) => img,
             Err(e) => {
-                crate::log_warn!("screenshot", "capture failed for monitor {i}: {e}");
+                #[cfg(target_os = "macos")]
+                let perm_diag = format!(" (macOS ScreenRecording permission: {:?})", crate::platform::permission_status(crate::platform::Permission::ScreenRecording));
+                #[cfg(not(target_os = "macos"))]
+                let perm_diag = String::new();
+                crate::log_warn!("screenshot", "capture failed for monitor {i}: {e}{perm_diag}");
                 continue;
             }
         };

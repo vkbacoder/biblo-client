@@ -110,7 +110,14 @@ pub fn request_screen_recording() -> bool {
     extern "C" {
         fn CGRequestScreenCaptureAccess() -> bool;
     }
-    unsafe { CGRequestScreenCaptureAccess() }
+    let granted = unsafe { CGRequestScreenCaptureAccess() };
+    if !granted {
+        crate::log_info!(
+            "platform",
+            "Screen Recording permission requested via CGRequestScreenCaptureAccess; if prompt did not appear or was denied, grant permission in System Settings -> Privacy & Security -> Screen Recording"
+        );
+    }
+    granted
 }
 
 /// Ask macOS for Input Monitoring. This is what *registers* the app in the

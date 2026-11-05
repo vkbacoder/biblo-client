@@ -478,7 +478,8 @@ pub fn start_controlled_scheduler(
                 continue;
             }
 
-            // OS ScreenRecording permission
+            // OS ScreenRecording permission (Windows only; on macOS, do not abort loop on preflight denial)
+            #[cfg(not(target_os = "macos"))]
             if permission_status(Permission::ScreenRecording) != PermissionState::Granted {
                 elapsed_seconds = 0;
                 continue;
@@ -537,7 +538,8 @@ pub fn process_manual_capture(
         };
     }
 
-    // 2. OS ScreenRecording permission check
+    // 2. OS ScreenRecording permission check (Windows only; on macOS, attempt actual capture in step 4)
+    #[cfg(not(target_os = "macos"))]
     if crate::platform::permission_status(crate::platform::Permission::ScreenRecording)
         != crate::platform::PermissionState::Granted
     {
@@ -602,12 +604,20 @@ pub fn process_manual_capture(
             completed_at: now,
         }
     } else {
+        #[cfg(target_os = "macos")]
+        let err_detail = {
+            let perm = crate::platform::permission_status(crate::platform::Permission::ScreenRecording);
+            format!("Capture engine produced 0 screenshots (macOS ScreenRecording permission: {:?})", perm)
+        };
+        #[cfg(not(target_os = "macos"))]
+        let err_detail = "Capture engine produced 0 screenshots".to_string();
+
         ManualCaptureResult {
             request_id: req_id,
             employee_id: emp_id,
             status: ManualCaptureStatus::Failed,
             screenshot_uuid: None,
-            error_message: Some("Capture engine produced 0 screenshots".to_string()),
+            error_message: Some(err_detail),
             completed_at: now,
         }
     }

@@ -134,6 +134,7 @@ async fn run(ctx: SyncContext) {
     // Trigger initial checks on first tick
     let mut last_sync = tokio::time::Instant::now() - BASE_INTERVAL;
     let mut last_request_poll = tokio::time::Instant::now() - REQUEST_POLL_INTERVAL;
+    let mut last_policy_poll = tokio::time::Instant::now() - BASE_INTERVAL;
 
     loop {
         if ctx.stop_signal.load(Ordering::Relaxed) {
@@ -160,7 +161,26 @@ async fn run(ctx: SyncContext) {
             }
         }
 
-        // 2. Periodically execute data sync batch pass (~5 min)
+        // 2. Periodically refresh screenshot policy from server (~10 min, or 30s retry when Unavailable)
+        let eff_state = ctx.policy_manager.state();
+        let policy_interval = if eff_state == PolicyState::Unavailable {
+            Duration::from_secs(30)
+        } else {
+            Duration::from_secs(ctx.adapter.poll_interval_s())
+        };
+        if now.duration_since(last_policy_poll) >= policy_interval {
+            last_policy_poll = now;
+            if ctx.auth.is_logged_in() {
+                if let Some(session) = ctx.auth.session() {
+                    let emp_id = session.resolved_employee_id();
+                    if !emp_id.is_empty() {
+                        let _ = ctx.adapter.sync_policy(&emp_id).await;
+                    }
+                }
+            }
+        }
+
+        // 3. Periodically execute data sync batch pass (~5 min)
         let now = tokio::time::Instant::now();
         if now.duration_since(last_sync) >= sync_backoff {
             last_sync = now;
@@ -255,8 +275,10 @@ pub async fn process_pending_capture_requests(ctx: &SyncContext) -> PassOutcome 
         // Server policy refresh when required before a manual capture:
         // Do not trust a stale local policy when the server cannot confirm authorization.
         let eff = ctx.policy_manager.effective_policy();
-        let needs_refresh = eff.state != PolicyState::Active
+        let needs_refresh = eff.state == PolicyState::Unavailable
+            || eff.state != PolicyState::Active
             || req.policy_version > eff.policy_version
+            || (req.policy_version == 0 && eff.policy_version == 0 && eff.state != PolicyState::Active)
             || !eff.capture_enabled
             || !eff.manual_capture_enabled;
 
@@ -360,6 +382,7 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
 
     let client = BackendClient::new(base_url.to_string(), ctx.auth.clone());
     let mut failed = false;
+    let mut synced_any = false;
 
     // --- JSON batch: activity + keystrokes + browser ---
     loop {
@@ -375,6 +398,18 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         let browser = ctx.db.pending_browser(BATCH_LIMIT).unwrap_or_default();
 
         if activity.is_empty() && keystrokes.is_empty() && browser.is_empty() {
+            if !synced_any {
+                // Queues are empty: send a lightweight empty batch to maintain device presence (last_seen_at) on the server.
+                if let Err(e) = client
+                    .sync_batch(&device_id, business_id.as_deref(), &[], &[], &[])
+                    .await
+                {
+                    ctx.status.record_error(format!("presence heartbeat: {e}"), pending_total(ctx));
+                    failed = true;
+                } else {
+                    crate::log_info!("sync", "device presence heartbeat successfully sent to backend");
+                }
+            }
             break;
         }
 
@@ -389,6 +424,7 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
             .await
         {
             Ok(accepted) => {
+                synced_any = true;
                 let _ = ctx.db.mark_synced(SyncTable::Activity, &accepted.activity);
                 let _ = ctx
                     .db
