@@ -157,7 +157,7 @@ type SyncStatus = {
 };
 
 type EffectivePolicy = {
-  state: "Active" | "FailClosed" | "Disabled";
+  state: "active" | "unavailable" | "loading" | "disabled";
   capture_enabled: boolean;
   continuous_capture_enabled: boolean;
   capture_interval_minutes: number;
@@ -706,25 +706,25 @@ function App() {
                 <span className="bb-statuspill">
                   <span
                     className={`bb-statuspill__dot ${
-                      policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                      policyStatus?.state === "active" && policyStatus?.capture_enabled
                         ? "is-green"
-                        : policyStatus?.state === "FailClosed"
+                        : (policyStatus?.state === "unavailable" || policyStatus?.state === "loading")
                           ? "is-amber"
                           : "is-neutral"
                     }`}
                   />
                   <span>
-                    {policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                    {policyStatus?.state === "active" && policyStatus?.capture_enabled
                       ? t("monitoring.active", "Screenshots: On")
-                      : policyStatus?.state === "FailClosed"
+                      : (policyStatus?.state === "unavailable" || policyStatus?.state === "loading")
                         ? t("monitoring.suspended", "Screenshots: Suspended")
                         : t("monitoring.off", "Screenshots: Off")}
                   </span>
                 </span>
                 <span className="bibo-tip__bubble" role="tooltip">
-                  {policyStatus?.state === "Active" && policyStatus?.capture_enabled
+                  {policyStatus?.state === "active" && policyStatus?.capture_enabled
                     ? "Screenshot monitoring active per organization policy"
-                    : policyStatus?.state === "FailClosed"
+                    : (policyStatus?.state === "unavailable" || policyStatus?.state === "loading")
                       ? "Screenshot capture temporarily suspended (fail-closed)"
                       : "Screenshot capture disabled by organization policy"}
                 </span>

@@ -159,8 +159,28 @@ impl ScreenshotPolicyAdapter {
             .await
         {
             Ok(policy) => Ok(policy),
+            Err(e) if e.contains("404") || e.contains("501") => {
+                // This backend doesn't implement the dedicated endpoint. Derive the
+                // policy from the org policy it does serve (`/v1/policy`). Network and
+                // auth errors still fail closed (handled by the arm below).
+                crate::log_info!(
+                    "policy",
+                    "/v1/screenshot-policy not available ({e}); deriving policy from /v1/policy"
+                );
+                let org = self.client.fetch_policy().await?;
+                let interval_s = org.screenshot_interval_s.unwrap_or(300);
+                Ok(ServerScreenshotPolicy {
+                    capture_enabled: true,
+                    continuous_capture_enabled: true,
+                    capture_interval_minutes: ((interval_s / 60).max(1)) as u32,
+                    manual_capture_enabled: true,
+                    policy_version: 1,
+                    policy_updated_at: crate::now_unix(),
+                    employee_id: employee_id.to_string(),
+                })
+            }
             Err(e) => {
-                // If 404 or connection error, log cleanly
+                // If connection error or other failure, log cleanly
                 crate::log_info!(
                     "policy",
                     "server screenshot-policy endpoint not active or returned error: {e}. Defaulting to fail-closed state."
